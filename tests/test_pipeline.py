@@ -149,6 +149,50 @@ def test_rss_fetch_rejects_non_http_scheme():
     assert _fetch("file:///etc/passwd") is None
 
 
+def test_migrate_adds_pending_column(tmp_path):
+    import sqlite3
+    from job_agent.db import Database
+
+    # Simulate an older DB whose applications table predates the `pending` column.
+    old = tmp_path / "old.db"
+    con = sqlite3.connect(old)
+    con.execute("CREATE TABLE applications (id INTEGER PRIMARY KEY, job_id INTEGER, status TEXT)")
+    con.commit()
+    con.close()
+
+    db = Database(old)
+    db.init_schema()  # runs _migrate()
+    cols = {r["name"] for r in db.conn.execute("PRAGMA table_info(applications)")}
+    db.close()
+    assert "pending" in cols
+
+
+def test_web_dashboard_smoke(cfg, monkeypatch):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("jinja2")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+    import job_agent.web.app as webmod
+
+    agent = JobAgent(cfg)
+    agent.init()
+    agent.import_resume(str(SAMPLE_PROFILE))
+    jobs = agent.search()
+    job_id = jobs[0].db_id
+    agent.tailor(job_id)
+    agent.close()
+
+    # Point the web app's per-request agent at the same temp config/DB.
+    monkeypatch.setattr(webmod, "JobAgent", lambda *a, **k: JobAgent(cfg))
+    client = TestClient(webmod.create_app())
+
+    r = client.get("/")
+    assert r.status_code == 200
+    r2 = client.get(f"/job/{job_id}")
+    assert r2.status_code == 200
+    assert "ATS" in r2.text
+
+
 def test_search_is_idempotent(cfg):
     agent = JobAgent(cfg)
     try:

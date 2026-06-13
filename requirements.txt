@@ -5,6 +5,7 @@ PyYAML>=6.0
 fastapi>=0.110
 uvicorn[standard]>=0.27
 jinja2>=3.1
+python-multipart>=0.0.9   # required by FastAPI for the dashboard's form POSTs
 
 # Resume parsing (optional but recommended)
 pdfplumber>=0.10        # PDF resumes

@@ -36,6 +36,25 @@ target_roles:
 # Minimum overall match score (0-100) for a job to appear in the daily report.
 min_match_score: 60
 
+# ── Match scoring ────────────────────────────────────────────────────────────
+matching:
+  # Relative weight of each component in the 0-100 overall score (need not sum
+  # to 1 exactly, but the defaults do). Bump "location" if you only want local.
+  weights:
+    skills: 0.40
+    experience: 0.25
+    location: 0.25
+    growth: 0.10
+  # Score for the skills component when a job ad has no detectable keywords.
+  # Kept at the midpoint so keyword-sparse posts can't rank deceptively high.
+  min_neutral_skill_score: 50
+
+# ── ATS resume check ─────────────────────────────────────────────────────────
+ats:
+  # Ideal tailored-resume length window (words) used by the ATS score.
+  min_words: 200
+  max_words: 900
+
 # ── Location requirements ────────────────────────────────────────────────────
 locations:
   # Roles tagged with these working styles are always accepted location-wise.

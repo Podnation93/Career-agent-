@@ -221,5 +221,3 @@ job_agent/
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design and
 [`docs/SETUP.md`](docs/SETUP.md) for the detailed setup walkthrough.
-</content>
-</invoke>

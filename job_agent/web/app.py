@@ -3,6 +3,9 @@
 A lightweight web UI over the same :class:`JobAgent` service used by the CLI:
 view top matches, trigger a search, tailor documents, and see the tracker and
 analytics. Run with ``python -m job_agent.cli serve``.
+
+Single-user, local tool: the server binds to 127.0.0.1 by default and has no
+auth/CSRF. Do not expose it to a network without putting auth in front of it.
 """
 
 from __future__ import annotations
@@ -12,6 +15,24 @@ from pathlib import Path
 from ..service import JobAgent
 
 _TEMPLATES = Path(__file__).parent / "templates"
+
+
+def _read_within(path: Path, root: Path) -> str | None:
+    """Read a file only if it resolves inside ``root`` and exists.
+
+    Defence in depth: document paths come from the DB, so confining reads to the
+    configured output dir prevents a tampered path (e.g. ``../../etc/passwd``)
+    from being served.
+    """
+    try:
+        resolved = path.resolve()
+        if not resolved.is_relative_to(root):
+            return None
+        if resolved.exists():
+            return resolved.read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return None
+    return None
 
 
 def create_app():
@@ -81,6 +102,7 @@ def create_app():
         try:
             job = agent.db.get_job(job_id)
             app_row = agent.db.get_application_for_job(job_id)
+            output_root = agent.cfg.output_dir.resolve()
         finally:
             agent.close()
         if not job:
@@ -91,9 +113,9 @@ def create_app():
             for label, path in (("ats_report", doc_dir / "ats_report.txt"),
                                 ("resume", app_row.resume_path),
                                 ("cover_letter", app_row.cover_letter_path)):
-                p = Path(path)
-                if p.exists():
-                    docs[label] = p.read_text(encoding="utf-8")
+                content = _read_within(Path(path), output_root)
+                if content is not None:
+                    docs[label] = content
         return render("job.html", job=job, app=app_row, docs=docs)
 
     return app

@@ -70,7 +70,10 @@ Overall score is a weighted blend (see `matching/scorer.py`):
 | Growth | 10% | Seniority + development/progression signals in the ad |
 
 The breakdown is stored per-job so the candidate always sees *why* a job ranked
-where it did.
+where it did. The weights and the no-keyword neutral score are configurable
+under `matching:` in `config.yaml`; the ATS resume length window lives under
+`ats:`. Skills are detected once per `Job` (`Job.skills_detected()`, cached) and
+reused by the scorer, ATS check and both document generators.
 
 ## Extending the search
 
