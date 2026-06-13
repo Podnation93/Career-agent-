@@ -134,6 +134,71 @@ def test_html_export_escapes():
     assert "<!doctype html>" in html_out
 
 
+def test_ats_report():
+    from job_agent.optimiser.ats import ats_report
+
+    job = Job(source="t", external_id="1", title="IT Support", company="c",
+              location="Sunshine, VIC",
+              description="Windows, Microsoft 365, Active Directory, help desk, teamwork")
+    good = (
+        "Alex Candidate\nalex@example.com\n\nPROFESSIONAL SUMMARY\nIT support pro.\n"
+        "KEY SKILLS\nWindows Server, Microsoft 365, Active Directory, Help Desk, Teamwork\n"
+        "EXPERIENCE\nIT Support Technician\nEDUCATION\nDiploma of IT\n" + ("word " * 220)
+    )
+    r = ats_report(good, job)
+    assert r.score >= 70
+    assert r.has_contact
+    assert "skills" in r.present_sections
+
+    thin = "Just some text with no keywords or sections."
+    r2 = ats_report(thin, job)
+    assert r2.score < r.score
+    assert r2.missing_sections
+    assert any("keyword" in s.lower() or "section" in s.lower() for s in r2.suggestions)
+
+
+def test_email_draft_building(tmp_path):
+    from job_agent.integrations import build_email_message, save_eml
+
+    resume = tmp_path / "resume.txt"
+    cover = tmp_path / "cover_letter.txt"
+    resume.write_text("RESUME CONTENT", encoding="utf-8")
+    cover.write_text("COVER CONTENT", encoding="utf-8")
+
+    msg = build_email_message(
+        sender="alex@example.com", subject="Application — IT Support",
+        body="Hi, please consider me.", to="recruiter@acme.com",
+        attachments=[str(resume), str(cover)],
+    )
+    assert msg["Subject"] == "Application — IT Support"
+    assert msg["To"] == "recruiter@acme.com"
+    assert msg["From"] == "alex@example.com"
+    attached = [p.get_filename() for p in msg.iter_attachments()]
+    assert "resume.txt" in attached and "cover_letter.txt" in attached
+
+    eml = save_eml(msg, tmp_path / "application.eml")
+    assert Path(eml).exists()
+    assert b"Application" in Path(eml).read_bytes()
+
+
+def test_daily_and_email_flow(cfg):
+    agent = JobAgent(cfg)
+    try:
+        agent.init()
+        agent.import_resume(str(SAMPLE_PROFILE))
+        result = agent.daily(top_n=2)
+        assert "JOB OPPORTUNITIES FOUND" in result["report"]
+        assert len(result["tailored"]) == 2
+        assert all(0 <= t["ats_score"] <= 100 for t in result["tailored"])
+
+        job_id = result["tailored"][0]["job_id"]
+        draft = agent.email_draft(job_id, to="recruiter@example.com")
+        assert Path(draft["eml"]).exists()
+        assert "Application" in draft["subject"]
+    finally:
+        agent.close()
+
+
 def test_full_agent_flow(cfg):
     agent = JobAgent(cfg)
     try:

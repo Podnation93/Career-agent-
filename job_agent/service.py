@@ -17,6 +17,8 @@ from .db import Database
 from .matching import MatchScorer
 from .models import Job, Profile
 from .optimiser import CoverLetterGenerator, ResumeOptimiser, to_html
+from .optimiser.ats import AtsReport, ats_report
+from .integrations import build_email_message, open_in_thunderbird, save_eml
 from .profile import (
     extract_profile_from_file,
     extract_profile_from_text,
@@ -33,6 +35,21 @@ def _slug(text: str) -> str:
     while "--" in s:
         s = s.replace("--", "-")
     return s.strip("-")[:60] or "job"
+
+
+def _format_ats(ats) -> str:
+    lines = [
+        f"ATS Score: {ats.score}/100",
+        f"Keyword coverage: {round(ats.keyword_coverage * 100)}%",
+        f"Matched: {', '.join(ats.matched_keywords) or '—'}",
+        f"Missing: {', '.join(ats.missing_keywords) or '—'}",
+        f"Sections present: {', '.join(ats.present_sections) or '—'}",
+        f"Word count: {ats.word_count}",
+        "",
+        "Suggestions:",
+    ]
+    lines += [f"  • {s}" for s in ats.suggestions]
+    return "\n".join(lines) + "\n"
 
 
 class JobAgent:
@@ -134,6 +151,11 @@ class JobAgent:
         resume_html.write_text(to_html(resume, f"{job.title} — Resume"), encoding="utf-8")
         cover_html.write_text(to_html(cover_full, f"{job.title} — Cover Letter"), encoding="utf-8")
 
+        # ATS scoring of the tailored resume, written alongside the docs.
+        ats = ats_report(resume, job)
+        ats_path = out_dir / "ats_report.txt"
+        ats_path.write_text(_format_ats(ats), encoding="utf-8")
+
         self.tracker.attach_documents(job, str(resume_path), str(cover_path))
         return {
             "resume": str(resume_path),
@@ -141,7 +163,77 @@ class JobAgent:
             "cover_letter_short": str(short_path),
             "resume_html": str(resume_html),
             "cover_letter_html": str(cover_html),
+            "ats_report": str(ats_path),
+            "ats_score": str(ats.score),
             "dir": str(out_dir),
+        }
+
+    def ats_for(self, job_id: int) -> AtsReport:
+        """Compute the ATS report for an already-tailored job's resume."""
+        app = self.db.get_application_for_job(job_id)
+        if not app or not app.resume_path or not Path(app.resume_path).exists():
+            self.tailor(job_id)
+            app = self.db.get_application_for_job(job_id)
+        job = self.db.get_job(job_id)
+        return ats_report(Path(app.resume_path).read_text(encoding="utf-8"), job)
+
+    # ── daily run ────────────────────────────────────────────────────────────
+
+    def daily(self, top_n: int = 3, report_limit: int = 10) -> dict:
+        """End-to-end daily pass: search, tailor the top matches, build report.
+
+        Returns the report text plus, for each of the top ``top_n`` qualifying
+        jobs, its tailored documents and ATS score.
+        """
+        self.search()
+        report = self.daily_report(limit=report_limit)
+        top = self.top_jobs(limit=top_n)
+        tailored = []
+        for job in top:
+            paths = self.tailor(job.db_id)
+            tailored.append({
+                "job_id": job.db_id,
+                "title": job.title,
+                "company": job.company,
+                "match_score": job.overall_score,
+                "ats_score": int(paths["ats_score"]),
+                "dir": paths["dir"],
+            })
+        return {"report": report, "tailored": tailored}
+
+    # ── email draft (never auto-sent) ──────────────────────────────────────────
+
+    def email_draft(self, job_id: int, *, to: str = "", open_thunderbird: bool = False) -> dict:
+        """Build a .eml application draft (Thunderbird-ready). Never sends."""
+        profile = self.require_profile()
+        app = self.db.get_application_for_job(job_id)
+        if not app or not app.resume_path or not Path(app.resume_path).exists():
+            self.tailor(job_id)
+            app = self.db.get_application_for_job(job_id)
+        job = self.db.get_job(job_id)
+
+        short_path = Path(app.resume_path).parent / "cover_letter_short.txt"
+        body = short_path.read_text(encoding="utf-8") if short_path.exists() else ""
+        subject = f"Application — {job.title}" + (f" ({profile.name})" if profile.name else "")
+        attachments = [app.resume_path, app.cover_letter_path]
+
+        msg = build_email_message(
+            sender=profile.email, subject=subject, body=body, to=to,
+            attachments=attachments,
+        )
+        eml_path = Path(app.resume_path).parent / "application.eml"
+        save_eml(msg, eml_path)
+
+        launched = False
+        if open_thunderbird:
+            launched = open_in_thunderbird(
+                subject=subject, body=body, to=to, attachments=attachments,
+            )
+        return {
+            "eml": str(eml_path),
+            "subject": subject,
+            "to": to,
+            "thunderbird_launched": launched,
         }
 
     # ── apply (prepare only) ────────────────────────────────────────────────────

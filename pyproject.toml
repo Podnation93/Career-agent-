@@ -45,6 +45,7 @@ packages = [
   "job_agent.tracker",
   "job_agent.analytics",
   "job_agent.reports",
+  "job_agent.integrations",
   "job_agent.web",
 ]
 

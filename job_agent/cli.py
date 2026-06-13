@@ -9,8 +9,10 @@ Run ``python -m job_agent.cli <command>``. Commands:
     search                     Find & score jobs, store them
     report                     Show today's opportunities report
     jobs                       List stored jobs (highest match first)
-    tailor <job_id>            Generate tailored resume + cover letters
+    tailor <job_id>            Generate tailored resume + cover letters + ATS score
+    daily                      Search, auto-tailor top matches, print report
     apply <job_id>             Prepare an application (never submits)
+    email <job_id>             Draft a Thunderbird-ready application email (never sends)
     status <job_id> <status>   Update an application's status
     track                      Show the application tracker
     analytics                  Show response analytics / learnings
@@ -94,7 +96,42 @@ def cmd_tailor(agent: JobAgent, args) -> None:
     paths = agent.tailor(args.job_id)
     print("Generated tailored documents:")
     for k, v in paths.items():
+        if k == "ats_score":
+            continue
         print(f"  {k}: {v}")
+    ats = agent.ats_for(args.job_id)
+    print(f"\nATS score: {ats.score}/100 "
+          f"(keyword coverage {round(ats.keyword_coverage * 100)}%)")
+    for s in ats.suggestions:
+        print(f"  • {s}")
+
+
+def cmd_daily(agent: JobAgent, args) -> None:
+    agent.init()
+    result = agent.daily(top_n=args.top)
+    print(result["report"])
+    if result["tailored"]:
+        print(f"\nAUTO-TAILORED TOP {len(result['tailored'])}")
+        print("=" * 40)
+        for t in result["tailored"]:
+            print(f"  [{t['match_score']:3d}] {t['title']} — {t['company']} "
+                  f"(ATS {t['ats_score']}/100)  id={t['job_id']}")
+            print(f"        docs: {t['dir']}")
+
+
+def cmd_email(agent: JobAgent, args) -> None:
+    result = agent.email_draft(args.job_id, to=args.to or "",
+                               open_thunderbird=args.open)
+    print(f"Drafted application email (not sent):")
+    print(f"  subject: {result['subject']}")
+    print(f"  to:      {result['to'] or '(fill in recruiter address)'}")
+    print(f"  .eml:    {result['eml']}")
+    if args.open:
+        if result["thunderbird_launched"]:
+            print("  Opened a Thunderbird compose window for your review.")
+        else:
+            print("  Thunderbird not found — double-click the .eml to open it.")
+    print("\nReview and send it yourself — the agent never sends mail.")
 
 
 def cmd_apply(agent: JobAgent, args) -> None:
@@ -167,8 +204,16 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("jobs", help="List stored jobs")
     sp.add_argument("--limit", type=int, default=50)
 
-    sp = sub.add_parser("tailor", help="Generate tailored documents")
+    sp = sub.add_parser("tailor", help="Generate tailored documents + ATS score")
     sp.add_argument("job_id", type=int)
+
+    sp = sub.add_parser("daily", help="Search, tailor top matches, build report")
+    sp.add_argument("--top", type=int, default=3, help="How many top jobs to auto-tailor")
+
+    sp = sub.add_parser("email", help="Draft a Thunderbird-ready application email (never sends)")
+    sp.add_argument("job_id", type=int)
+    sp.add_argument("--to", help="Recruiter email address")
+    sp.add_argument("--open", action="store_true", help="Open a Thunderbird compose window")
 
     sp = sub.add_parser("apply", help="Prepare an application (never submits)")
     sp.add_argument("job_id", type=int)
@@ -198,6 +243,8 @@ COMMANDS = {
     "report": cmd_report,
     "jobs": cmd_jobs,
     "tailor": cmd_tailor,
+    "daily": cmd_daily,
+    "email": cmd_email,
     "apply": cmd_apply,
     "status": cmd_status,
     "track": cmd_track,

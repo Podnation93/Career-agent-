@@ -87,7 +87,9 @@ def create_app():
             return HTMLResponse("Job not found", status_code=404)
         docs = {}
         if app_row and app_row.resume_path:
-            for label, path in (("resume", app_row.resume_path),
+            doc_dir = Path(app_row.resume_path).parent
+            for label, path in (("ats_report", doc_dir / "ats_report.txt"),
+                                ("resume", app_row.resume_path),
                                 ("cover_letter", app_row.cover_letter_path)):
                 p = Path(path)
                 if p.exists():

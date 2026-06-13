@@ -26,6 +26,9 @@ and learns what works.
 | Rewrites your resume per role (ATS-optimised, truthful) | `job_agent/optimiser` |
 | Generates short + full cover letters per role | `job_agent/optimiser` |
 | Exports tailored docs to print/PDF-ready HTML | `job_agent/optimiser` |
+| Scores the tailored resume for ATS (keywords/sections/length) | `job_agent/optimiser` |
+| Drafts a Thunderbird-ready application email (never sends) | `job_agent/integrations` |
+| One-shot `daily` run: search → tailor top matches → report | `job_agent/service.py` |
 | Prepares applications via browser automation | `job_agent/automation` |
 | Tracks every application & status | `job_agent/tracker` |
 | Produces a daily opportunities report | `job_agent/reports` |
@@ -111,10 +114,16 @@ python -m job_agent.cli search
 # 9. See today's report
 python -m job_agent.cli report
 
-# 10. Tailor documents for a specific job id
+# 10. Tailor documents for a specific job id (also prints an ATS score)
 python -m job_agent.cli tailor <job_id>
 
-# 11. Launch the web dashboard
+# 11. Or do it all in one go: search → tailor top matches → report
+python -m job_agent.cli daily --top 3
+
+# 12. Draft a Thunderbird-ready application email (never sends)
+python -m job_agent.cli email <job_id> --to recruiter@company.com --open
+
+# 13. Launch the web dashboard
 python -m job_agent.cli serve   # http://127.0.0.1:8000
 ```
 
