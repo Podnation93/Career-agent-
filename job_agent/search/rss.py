@@ -159,9 +159,12 @@ def parse_feed(content: str, source_url: str = "") -> list[Job]:
 class RSSAdapter:
     name = "rss"
 
-    def __init__(self, feeds: list[str] | None = None):
+    def __init__(self, cfg=None, feeds: list[str] | None = None):
         if feeds is None:
-            cfg = load_config()
+            # Prefer injected config; fall back to loading it only when the
+            # adapter is constructed standalone (e.g. in tests).
+            if cfg is None:
+                cfg = load_config()
             feeds = cfg.get("search.rss_feeds", []) or []
         self.feeds = feeds
 

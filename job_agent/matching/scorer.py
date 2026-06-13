@@ -13,10 +13,15 @@ from __future__ import annotations
 from ..config import Config
 from ..location import LocationFilter
 from ..models import Job, LocationMatch, Profile
-from ..profile import skills as skillset
 
-# Weights for the overall score. Tuned so location and skills dominate.
+# Default weights for the overall score. Tuned so location and skills dominate.
+# Overridable via `matching.weights` in config.yaml.
 WEIGHTS = {"skills": 0.40, "experience": 0.25, "location": 0.25, "growth": 0.10}
+
+# Score given when a job ad has no detectable skill keywords. Deliberately at
+# the midpoint (not above it) so keyword-sparse posts can't rank deceptively
+# high. Overridable via `matching.min_neutral_skill_score`.
+DEFAULT_NEUTRAL_SKILL_SCORE = 50
 
 
 class MatchScorer:
@@ -25,16 +30,18 @@ class MatchScorer:
         self.profile = profile
         self.location_filter = LocationFilter(cfg)
         self.profile_skills = {s.lower() for s in profile.all_skills()}
+        self.weights = {**WEIGHTS, **(cfg.get("matching.weights", {}) or {})}
+        self.neutral_skill_score = int(
+            cfg.get("matching.min_neutral_skill_score", DEFAULT_NEUTRAL_SKILL_SCORE)
+        )
 
     # ── component scores ──────────────────────────────────────────────────────
 
     def _skills(self, job: Job) -> tuple[int, list[str], list[str]]:
         """Score skill overlap; return (score, met, gaps)."""
-        required = skillset.find_technical_skills(job.description) + \
-            skillset.find_soft_skills(job.description)
-        required = list(dict.fromkeys(required))
+        required = job.skills_detected()
         if not required:
-            return 60, [], []  # no detectable requirements → neutral-ish
+            return self.neutral_skill_score, [], []  # no detectable requirements
         met = [s for s in required if s.lower() in self.profile_skills]
         gaps = [s for s in required if s.lower() not in self.profile_skills]
         score = round(100 * len(met) / len(required))
@@ -74,10 +81,10 @@ class MatchScorer:
         growth_score = self._growth(job)
 
         overall = round(
-            WEIGHTS["skills"] * skills_score
-            + WEIGHTS["experience"] * experience_score
-            + WEIGHTS["location"] * location_score
-            + WEIGHTS["growth"] * growth_score
+            self.weights["skills"] * skills_score
+            + self.weights["experience"] * experience_score
+            + self.weights["location"] * location_score
+            + self.weights["growth"] * growth_score
         )
 
         job.skills_score = skills_score

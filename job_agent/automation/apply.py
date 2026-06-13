@@ -11,10 +11,13 @@ file paths) so you can apply by hand.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from ..models import Application, Job
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -87,8 +90,8 @@ class ApplicationAutomator:
                     inputs = page.query_selector_all(selector)
                     for i, inp in enumerate(inputs):
                         inp.set_input_files(resume if i == 0 else cover)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Could not auto-attach files to %s: %s", selector, exc)
             # Pause for human review — never auto-submit.
             try:
                 page.pause()

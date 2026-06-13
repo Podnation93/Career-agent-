@@ -106,7 +106,7 @@ class JobAgent:
         profile = self.require_profile()
         scorer = MatchScorer(self.cfg, profile)
         limit = int(self.cfg.get("search.results_per_source", 25))
-        adapters = get_adapters(self.cfg.search_sources)
+        adapters = get_adapters(self.cfg, self.cfg.search_sources)
 
         scored: list[Job] = []
         for adapter in adapters:
@@ -154,7 +154,7 @@ class JobAgent:
         cover_html.write_text(to_html(cover_full, f"{job.title} — Cover Letter"), encoding="utf-8")
 
         # ATS scoring of the tailored resume, written alongside the docs.
-        ats = ats_report(resume, job)
+        ats = ats_report(resume, job, **self._ats_kwargs())
         ats_path = out_dir / "ats_report.txt"
         ats_path.write_text(_format_ats(ats), encoding="utf-8")
 
@@ -177,7 +177,14 @@ class JobAgent:
             self.tailor(job_id)
             app = self.db.get_application_for_job(job_id)
         job = self.db.get_job(job_id)
-        return ats_report(Path(app.resume_path).read_text(encoding="utf-8"), job)
+        return ats_report(Path(app.resume_path).read_text(encoding="utf-8"), job,
+                          **self._ats_kwargs())
+
+    def _ats_kwargs(self) -> dict:
+        return {
+            "min_words": int(self.cfg.get("ats.min_words", 200)),
+            "max_words": int(self.cfg.get("ats.max_words", 900)),
+        }
 
     # ── daily run ────────────────────────────────────────────────────────────
 

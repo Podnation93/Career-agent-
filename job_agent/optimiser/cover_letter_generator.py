@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from ..ai import AIProvider
 from ..models import Job, Profile
-from ..profile import skills as skillset
 
 SYSTEM = (
     "You are an expert cover-letter writer. Match the candidate's own voice and "
@@ -32,9 +31,7 @@ class CoverLetterGenerator:
         self.profile_skills = {s.lower() for s in profile.all_skills()}
 
     def _matching_skills(self, job: Job) -> list[str]:
-        wanted = skillset.find_technical_skills(job.description) + \
-            skillset.find_soft_skills(job.description)
-        return [k for k in dict.fromkeys(wanted) if k.lower() in self.profile_skills]
+        return [k for k in job.skills_detected() if k.lower() in self.profile_skills]
 
     # ── deterministic fallbacks ────────────────────────────────────────────────
 

@@ -99,8 +99,30 @@ class Job:
 
     db_id: int | None = None
 
+    # Cache of skills detected in the description (not persisted).
+    _detected_skills: list[str] = field(default_factory=list, repr=False, compare=False)
+
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        d.pop("_detected_skills", None)
+        return d
+
+    def skills_detected(self) -> list[str]:
+        """Skills (technical + soft) detected in the job description.
+
+        Computed once and cached on the instance so the scorer, ATS check and
+        both document generators share a single, consistent extraction instead
+        of each re-running the regex pass. Not persisted — recomputed lazily
+        the first time it's needed on a freshly loaded Job.
+        """
+        if not self._detected_skills:
+            from .profile import skills as skillset  # lazy: avoid import cycle
+
+            self._detected_skills = list(dict.fromkeys(
+                skillset.find_technical_skills(self.description)
+                + skillset.find_soft_skills(self.description)
+            ))
+        return self._detected_skills
 
 
 # ── Applications ─────────────────────────────────────────────────────────────

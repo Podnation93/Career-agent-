@@ -14,10 +14,13 @@ returning ``None`` (or failing) never breaks the pipeline.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Protocol
 
 from ..config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class AIProvider(Protocol):
@@ -63,7 +66,8 @@ class OllamaProvider:
             )
             resp.raise_for_status()
             return (resp.json().get("response") or "").strip() or None
-        except Exception:
+        except Exception as exc:
+            logger.warning("Ollama generation failed (%s); falling back to template.", exc)
             return None
 
 
@@ -102,7 +106,8 @@ class AnthropicProvider:
             blocks = resp.json().get("content", [])
             text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
             return text.strip() or None
-        except Exception:
+        except Exception as exc:
+            logger.warning("Anthropic generation failed (%s); falling back to template.", exc)
             return None
 
 

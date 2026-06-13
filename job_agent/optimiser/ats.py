@@ -19,7 +19,6 @@ import re
 from dataclasses import dataclass, field
 
 from ..models import Job
-from ..profile import skills as skillset
 
 _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _EXPECTED_SECTIONS = {
@@ -53,18 +52,18 @@ class AtsReport:
     suggestions: list[str] = field(default_factory=list)
 
 
-def _job_keywords(job: Job) -> list[str]:
-    kws = skillset.find_technical_skills(job.description) + \
-        skillset.find_soft_skills(job.description)
-    return list(dict.fromkeys(kws))
-
-
-def ats_report(resume_text: str, job: Job) -> AtsReport:
+def ats_report(
+    resume_text: str,
+    job: Job,
+    *,
+    min_words: int = _MIN_WORDS,
+    max_words: int = _MAX_WORDS,
+) -> AtsReport:
     low = resume_text.lower()
     report = AtsReport(word_count=len(resume_text.split()))
 
-    # 1. Keyword coverage
-    keywords = _job_keywords(job)
+    # 1. Keyword coverage (shared, cached skill extraction on the Job)
+    keywords = job.skills_detected()
     if keywords:
         matched = [k for k in keywords if k.lower() in low]
         report.matched_keywords = matched
@@ -88,19 +87,19 @@ def ats_report(resume_text: str, job: Job) -> AtsReport:
     contact_score = _W_CONTACT if report.has_contact else 0
 
     # 4. Length
-    if _MIN_WORDS <= report.word_count <= _MAX_WORDS:
+    if min_words <= report.word_count <= max_words:
         length_score = _W_LENGTH
-    elif report.word_count < _MIN_WORDS:
-        length_score = _W_LENGTH * report.word_count / _MIN_WORDS
+    elif report.word_count < min_words:
+        length_score = _W_LENGTH * report.word_count / min_words
     else:  # too long
-        length_score = _W_LENGTH * max(0.3, _MAX_WORDS / report.word_count)
+        length_score = _W_LENGTH * max(0.3, max_words / report.word_count)
 
     report.score = round(kw_score + sec_score + contact_score + length_score)
-    report.suggestions = _suggestions(report)
+    report.suggestions = _suggestions(report, min_words, max_words)
     return report
 
 
-def _suggestions(r: AtsReport) -> list[str]:
+def _suggestions(r: AtsReport, min_words: int, max_words: int) -> list[str]:
     out: list[str] = []
     if r.missing_keywords:
         out.append(
@@ -111,10 +110,10 @@ def _suggestions(r: AtsReport) -> list[str]:
         out.append("Add clearly-labelled sections: " + ", ".join(r.missing_sections))
     if not r.has_contact:
         out.append("Add a parseable email address near the top.")
-    if r.word_count < _MIN_WORDS:
-        out.append(f"Resume is short ({r.word_count} words); add detail to reach ~{_MIN_WORDS}+.")
-    elif r.word_count > _MAX_WORDS:
-        out.append(f"Resume is long ({r.word_count} words); trim toward ~{_MAX_WORDS}.")
+    if r.word_count < min_words:
+        out.append(f"Resume is short ({r.word_count} words); add detail to reach ~{min_words}+.")
+    elif r.word_count > max_words:
+        out.append(f"Resume is long ({r.word_count} words); trim toward ~{max_words}.")
     if not out:
         out.append("Looks ATS-ready — strong keyword coverage and structure.")
     return out

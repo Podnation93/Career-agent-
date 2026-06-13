@@ -11,10 +11,13 @@ Nothing here sends mail — it only prepares a draft for your review.
 
 from __future__ import annotations
 
+import logging
 import shutil
 import subprocess
 from email.message import EmailMessage
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def build_email_message(
@@ -90,5 +93,6 @@ def open_in_thunderbird(
     try:
         subprocess.Popen([tb, "-compose", compose_arg])  # noqa: S603 - local app launch
         return True
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to launch Thunderbird compose: %s", exc)
         return False

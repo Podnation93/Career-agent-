@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from ..ai import AIProvider
 from ..models import Job, Profile
-from ..profile import skills as skillset
 
 SYSTEM = (
     "You are an expert resume writer optimising for ATS. Rewrite truthfully — "
@@ -33,9 +32,7 @@ class ResumeOptimiser:
 
     def _relevant_keywords(self, job: Job) -> list[str]:
         """Job keywords the candidate actually has."""
-        wanted = skillset.find_technical_skills(job.description) + \
-            skillset.find_soft_skills(job.description)
-        return [k for k in dict.fromkeys(wanted) if k.lower() in self.profile_skills]
+        return [k for k in job.skills_detected() if k.lower() in self.profile_skills]
 
     def _reorder_skills(self, job: Job) -> list[str]:
         relevant = self._relevant_keywords(job)
