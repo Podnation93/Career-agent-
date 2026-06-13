@@ -94,6 +94,14 @@ locations:
 search:
   # Which adapters to query. "sample" ships example data so everything runs.
   # Real adapters (seek, linkedin, indeed) are scaffolds — see search/ docs.
+  # The "rss" source reads any RSS/Atom job feeds listed in rss_feeds below —
+  # a fully ToS-compliant way to pull live jobs from boards/companies that
+  # publish feeds. Add "rss" to sources and list your feed URLs.
   sources:
     - "sample"
   results_per_source: 25
+
+  # RSS/Atom job feed URLs (used when "rss" is in sources).
+  rss_feeds: []
+    # - "https://example.com/jobs.rss"
+    # - "https://careers.example.gov.au/feed"

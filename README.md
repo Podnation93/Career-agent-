@@ -1,5 +1,7 @@
 # Personal AI Job Application Agent
 
+![CI](https://github.com/Podnation93/Career-agent-/actions/workflows/ci.yml/badge.svg)
+
 A personal AI recruiter that understands your professional profile, finds
 high-quality jobs around **Western Melbourne, Melbourne CBD and Richmond**,
 tailors your resume and cover letter to each role, tracks every application,
@@ -18,11 +20,12 @@ and learns what works.
 |---|---|
 | Imports & understands your resume | `job_agent/profile` |
 | Learns your cover-letter style & career story | `job_agent/profile` |
-| Searches multiple job boards (pluggable adapters) | `job_agent/search` |
+| Searches job boards via pluggable adapters (incl. compliant RSS/Atom feeds) | `job_agent/search` |
 | Filters to your preferred Melbourne locations | `job_agent/location` |
 | Scores each job (skills / experience / location / growth) | `job_agent/matching` |
 | Rewrites your resume per role (ATS-optimised, truthful) | `job_agent/optimiser` |
 | Generates short + full cover letters per role | `job_agent/optimiser` |
+| Exports tailored docs to print/PDF-ready HTML | `job_agent/optimiser` |
 | Prepares applications via browser automation | `job_agent/automation` |
 | Tracks every application & status | `job_agent/tracker` |
 | Produces a daily opportunities report | `job_agent/reports` |
@@ -131,6 +134,15 @@ in an LLM:
 See `config.yaml` for all options.
 
 ---
+
+## Live job feeds (RSS/Atom)
+
+Beyond the bundled `sample` data, the `rss` source pulls **live** jobs from any
+RSS/Atom feed you list under `search.rss_feeds` in `config.yaml` — a fully
+ToS-compliant approach (feeds are published for consumption). Add `"rss"` to
+`search.sources` and list feed URLs from job boards, company career pages or
+government portals. The other adapters (Seek/LinkedIn/Indeed) remain scaffolds;
+see the legal note below.
 
 ## Locations
 

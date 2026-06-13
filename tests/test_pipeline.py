@@ -94,6 +94,46 @@ def test_document_generation_is_truthful(profile):
     assert len(short) < len(full)
 
 
+def test_rss_parser():
+    from job_agent.search.rss import parse_feed
+
+    rss = """<?xml version="1.0"?>
+    <rss version="2.0"><channel>
+      <title>Jobs</title>
+      <item>
+        <title>Service Desk Analyst at Acme Corp</title>
+        <link>https://jobs.example.com/123</link>
+        <guid>job-123</guid>
+        <description>&lt;p&gt;Support role in Richmond, VIC. M365 and Active Directory.&lt;/p&gt;</description>
+        <pubDate>Mon, 09 Jun 2026 00:00:00 GMT</pubDate>
+      </item>
+    </channel></rss>"""
+    jobs = parse_feed(rss)
+    assert len(jobs) == 1
+    j = jobs[0]
+    assert j.title == "Service Desk Analyst"
+    assert j.company == "Acme Corp"
+    assert j.location == "Richmond, VIC"
+    assert "<p>" not in j.description  # HTML stripped
+    assert j.url == "https://jobs.example.com/123"
+    assert j.external_id == "job-123"
+
+
+def test_rss_parser_handles_garbage():
+    from job_agent.search.rss import parse_feed
+
+    assert parse_feed("not xml at all") == []
+
+
+def test_html_export_escapes():
+    from job_agent.optimiser import to_html
+
+    html_out = to_html("Skills: C++ & <script>", "Resume")
+    assert "<script>" not in html_out  # escaped
+    assert "&lt;script&gt;" in html_out
+    assert "<!doctype html>" in html_out
+
+
 def test_full_agent_flow(cfg):
     agent = JobAgent(cfg)
     try:

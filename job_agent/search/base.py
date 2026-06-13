@@ -27,9 +27,11 @@ def get_adapters(names: list[str]) -> list[SearchAdapter]:
     from .seek import SeekAdapter
     from .linkedin import LinkedInAdapter
     from .indeed import IndeedAdapter
+    from .rss import RSSAdapter
 
     registry: dict[str, type[SearchAdapter]] = {
         "sample": SampleAdapter,
+        "rss": RSSAdapter,
         "seek": SeekAdapter,
         "linkedin": LinkedInAdapter,
         "indeed": IndeedAdapter,

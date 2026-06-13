@@ -16,7 +16,7 @@ from .config import Config, load_config
 from .db import Database
 from .matching import MatchScorer
 from .models import Job, Profile
-from .optimiser import CoverLetterGenerator, ResumeOptimiser
+from .optimiser import CoverLetterGenerator, ResumeOptimiser, to_html
 from .profile import (
     extract_profile_from_file,
     extract_profile_from_text,
@@ -128,11 +128,19 @@ class JobAgent:
         cover_path.write_text(cover_full, encoding="utf-8")
         short_path.write_text(cover_short, encoding="utf-8")
 
+        # Print/PDF-ready HTML versions (open in a browser → Save as PDF).
+        resume_html = out_dir / "resume.html"
+        cover_html = out_dir / "cover_letter.html"
+        resume_html.write_text(to_html(resume, f"{job.title} — Resume"), encoding="utf-8")
+        cover_html.write_text(to_html(cover_full, f"{job.title} — Cover Letter"), encoding="utf-8")
+
         self.tracker.attach_documents(job, str(resume_path), str(cover_path))
         return {
             "resume": str(resume_path),
             "cover_letter": str(cover_path),
             "cover_letter_short": str(short_path),
+            "resume_html": str(resume_html),
+            "cover_letter_html": str(cover_html),
             "dir": str(out_dir),
         }
 

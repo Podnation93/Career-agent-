@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "job-agent"
+version = "0.1.0"
+description = "Personal AI job application agent — finds, matches and tailors applications for roles around Melbourne."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+# Resume parsing
+parsing = ["pdfplumber>=0.10", "python-docx>=1.1"]
+# Web dashboard
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "jinja2>=3.1"]
+# Browser automation
+automation = ["playwright>=1.42"]
+# Network sources / LLM providers
+net = ["httpx>=0.27"]
+# Everything
+all = [
+  "pdfplumber>=0.10", "python-docx>=1.1",
+  "fastapi>=0.110", "uvicorn[standard]>=0.27", "jinja2>=3.1",
+  "playwright>=1.42", "httpx>=0.27", "rich>=13.7",
+]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+job-agent = "job_agent.cli:main"
+
+[tool.setuptools]
+packages = [
+  "job_agent",
+  "job_agent.ai",
+  "job_agent.profile",
+  "job_agent.search",
+  "job_agent.location",
+  "job_agent.matching",
+  "job_agent.optimiser",
+  "job_agent.automation",
+  "job_agent.tracker",
+  "job_agent.analytics",
+  "job_agent.reports",
+  "job_agent.web",
+]
+
+[tool.setuptools.package-data]
+"job_agent.web" = ["templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
