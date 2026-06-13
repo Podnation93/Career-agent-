@@ -29,6 +29,7 @@ and learns what works.
 | Scores the tailored resume for ATS (keywords/sections/length) | `job_agent/optimiser` |
 | Drafts a Thunderbird-ready application email (never sends) | `job_agent/integrations` |
 | One-shot `daily` run: search → tailor top matches → report | `job_agent/service.py` |
+| Approval-gated apply: prepare → you approve → then send/submit | `job_agent/service.py` |
 | Prepares applications via browser automation | `job_agent/automation` |
 | Tracks every application & status | `job_agent/tracker` |
 | Produces a daily opportunities report | `job_agent/reports` |
@@ -143,6 +144,29 @@ in an LLM:
 See `config.yaml` for all options.
 
 ---
+
+## Applying (approval-gated)
+
+The agent **never sends or submits on its own.** Applying is a two-step,
+human-approved flow:
+
+```bash
+# 1. Prepare a complete application and queue it for your approval (sends nothing)
+python -m job_agent.cli request-apply <job_id> --via email --to recruiter@company.com
+
+# 2. See what's waiting
+python -m job_agent.cli pending
+
+# 3. Approve → opens a Thunderbird compose window for you to send (or reject)
+python -m job_agent.cli approve <job_id>
+python -m job_agent.cli reject  <job_id> --reason "not interested"
+```
+
+When the agent is driving and you're away, the approval step surfaces as a
+**push notification in the Claude Code mobile app** — you tap to approve and the
+agent runs `approve`. Email applications open in Thunderbird for you to send;
+web-form applications open the prepared form in a browser for you to submit.
+Either way, the final action is yours.
 
 ## Live job feeds (RSS/Atom)
 

@@ -10,8 +10,11 @@ components, how data flows between them, and the principles that shaped them.
 2. **Truthful by construction.** Nothing in the resume/cover-letter pipeline can
    invent skills or experience — generators only re-order, re-point and surface
    what the imported profile genuinely contains.
-3. **Human in the loop.** The automation layer prepares applications but never
-   submits. Final submission is always a human action.
+3. **Human in the loop.** The agent prepares applications but never sends or
+   submits on its own. Applying is approval-gated: `request_apply` parks a
+   prepared application in the `AwaitingApproval` state with a stored plan, and
+   nothing leaves until `approve_apply` is triggered by a human (e.g. accepting
+   the phone push the agent sends). Final send/submit is always a human action.
 4. **Runs anywhere, with or without an LLM.** A deterministic heuristic engine
    powers matching and document generation out of the box; an LLM (local Ollama
    or Anthropic Claude) can be plugged in for higher-quality writing.

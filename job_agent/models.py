@@ -109,6 +109,7 @@ class Job:
 class ApplicationStatus(str, Enum):
     FOUND = "Found"
     PREPARING = "Preparing"
+    AWAITING_APPROVAL = "AwaitingApproval"
     APPLIED = "Applied"
     INTERVIEW = "Interview"
     REJECTED = "Rejected"
@@ -130,6 +131,8 @@ class Application:
     date_applied: str = ""
     notes: str = ""
     got_response: bool = False
+    # JSON blob describing a prepared-but-not-yet-approved action (channel, to…).
+    pending: str = ""
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
 
     db_id: int | None = None

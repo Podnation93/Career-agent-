@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS applications (
     date_applied TEXT,
     notes TEXT,
     got_response INTEGER DEFAULT 0,
+    pending TEXT DEFAULT '',
     created_at TEXT,
     FOREIGN KEY(job_id) REFERENCES jobs(id)
 );
@@ -82,7 +83,14 @@ class Database:
 
     def init_schema(self) -> None:
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after a database was first created."""
+        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(applications)")}
+        if "pending" not in cols:
+            self.conn.execute("ALTER TABLE applications ADD COLUMN pending TEXT DEFAULT ''")
 
     def close(self) -> None:
         self.conn.close()
@@ -172,9 +180,9 @@ class Database:
         if app.db_id:
             self.conn.execute(
                 "UPDATE applications SET status=?, resume_path=?, cover_letter_path=?, "
-                "date_applied=?, notes=?, got_response=?, match_score=? WHERE id=?",
+                "date_applied=?, notes=?, got_response=?, pending=?, match_score=? WHERE id=?",
                 (app.status, app.resume_path, app.cover_letter_path, app.date_applied,
-                 app.notes, int(app.got_response), app.match_score, app.db_id),
+                 app.notes, int(app.got_response), app.pending, app.match_score, app.db_id),
             )
             self.conn.commit()
             return app.db_id
@@ -188,10 +196,10 @@ class Database:
         cur = self.conn.execute(
             "INSERT INTO applications (job_id, company, role, location, match_score, "
             "status, resume_path, cover_letter_path, date_applied, notes, got_response, "
-            "created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "pending, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (app.job_id, app.company, app.role, app.location, app.match_score, app.status,
              app.resume_path, app.cover_letter_path, app.date_applied, app.notes,
-             int(app.got_response), app.created_at),
+             int(app.got_response), app.pending, app.created_at),
         )
         self.conn.commit()
         return cur.lastrowid
@@ -200,6 +208,7 @@ class Database:
         d = dict(row)
         d["db_id"] = d.pop("id")
         d["got_response"] = bool(d["got_response"])
+        d["pending"] = d.get("pending") or ""
         return Application(**d)
 
     def get_application_for_job(self, job_id: int) -> Application | None:

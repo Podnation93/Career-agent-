@@ -7,6 +7,8 @@ workflows: import profile, search & score, tailor documents, track and report.
 
 from __future__ import annotations
 
+import json
+from datetime import date
 from pathlib import Path
 
 from .ai import get_provider
@@ -15,7 +17,7 @@ from .automation import ApplicationAutomator, PreparedApplication
 from .config import Config, load_config
 from .db import Database
 from .matching import MatchScorer
-from .models import Job, Profile
+from .models import ApplicationStatus, Job, Profile
 from .optimiser import CoverLetterGenerator, ResumeOptimiser, to_html
 from .optimiser.ats import AtsReport, ats_report
 from .integrations import build_email_message, open_in_thunderbird, save_eml
@@ -248,6 +250,89 @@ class JobAgent:
             self.tailor(job_id)
             app = self.db.get_application_for_job(job_id)
         return ApplicationAutomator(headless=headless).prepare(job, app)
+
+    # ── approval-gated apply ────────────────────────────────────────────────────
+    #
+    # The agent never sends or submits on its own. ``request_apply`` prepares a
+    # complete application and parks it in the AwaitingApproval state with a
+    # ``pending`` plan; nothing leaves until ``approve_apply`` is called (which a
+    # human triggers — e.g. by accepting the phone push the agent sends).
+
+    def request_apply(self, job_id: int, *, via: str = "email", to: str = "") -> dict:
+        """Prepare an application and queue it for approval. Sends nothing."""
+        if via not in ("email", "web"):
+            raise ValueError("via must be 'email' or 'web'.")
+        job = self.db.get_job(job_id)
+        if not job:
+            raise ValueError(f"Job {job_id} not found.")
+        self.tailor(job_id)  # ensure fresh documents + ATS
+        app = self.db.get_application_for_job(job_id)
+
+        plan = {
+            "via": via, "to": to, "job_id": job_id,
+            "title": job.title, "company": job.company, "location": job.location,
+            "resume": app.resume_path, "cover_letter": app.cover_letter_path,
+        }
+        if via == "email":
+            draft = self.email_draft(job_id, to=to, open_thunderbird=False)
+            plan["eml"] = draft["eml"]
+            plan["subject"] = draft["subject"]
+        else:  # web
+            plan["url"] = job.url
+
+        app.pending = json.dumps(plan)
+        app.status = ApplicationStatus.AWAITING_APPROVAL.value
+        self.db.upsert_application(app)
+        return plan
+
+    def pending_approvals(self) -> list[dict]:
+        """All applications currently awaiting your approval, with their plans."""
+        out = []
+        for a in self.tracker.all():
+            if a.status == ApplicationStatus.AWAITING_APPROVAL.value and a.pending:
+                out.append(json.loads(a.pending))
+        return out
+
+    def approve_apply(self, job_id: int, *, open_thunderbird: bool = True) -> dict:
+        """Execute a queued application after approval. For email this opens a
+        Thunderbird compose window for you to send; the agent still never sends."""
+        app = self.db.get_application_for_job(job_id)
+        if not app or app.status != ApplicationStatus.AWAITING_APPROVAL.value or not app.pending:
+            raise ValueError(f"No application awaiting approval for job {job_id}.")
+        plan = json.loads(app.pending)
+        result = {"via": plan.get("via"), "job_id": job_id}
+
+        if plan.get("via") == "email":
+            short = Path(app.resume_path).parent / "cover_letter_short.txt"
+            body = short.read_text(encoding="utf-8") if short.exists() else ""
+            launched = False
+            if open_thunderbird:
+                launched = open_in_thunderbird(
+                    subject=plan.get("subject", ""), body=body, to=plan.get("to", ""),
+                    attachments=[app.resume_path, app.cover_letter_path],
+                )
+            result["thunderbird_launched"] = launched
+            result["eml"] = plan.get("eml")
+        else:  # web — hand the prepared application to the browser automator
+            result["url"] = plan.get("url")
+            result["instructions"] = self.prepare_application(job_id).instructions
+
+        app.pending = ""
+        app.status = ApplicationStatus.APPLIED.value
+        app.date_applied = date.today().isoformat()
+        self.db.upsert_application(app)
+        return result
+
+    def reject_apply(self, job_id: int, reason: str = "") -> None:
+        """Cancel a queued application; it returns to the Preparing state."""
+        app = self.db.get_application_for_job(job_id)
+        if not app or app.status != ApplicationStatus.AWAITING_APPROVAL.value:
+            raise ValueError(f"No application awaiting approval for job {job_id}.")
+        app.pending = ""
+        app.status = ApplicationStatus.PREPARING.value
+        if reason:
+            app.notes = (app.notes + "\n" + reason).strip() if app.notes else reason
+        self.db.upsert_application(app)
 
     # ── tracker & analytics ──────────────────────────────────────────────────
 

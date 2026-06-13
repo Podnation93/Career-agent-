@@ -13,6 +13,10 @@ Run ``python -m job_agent.cli <command>``. Commands:
     daily                      Search, auto-tailor top matches, print report
     apply <job_id>             Prepare an application (never submits)
     email <job_id>             Draft a Thunderbird-ready application email (never sends)
+    request-apply <job_id>     Prepare an application & queue it for your approval
+    approve <job_id>           Approve a queued application (you still send/submit)
+    reject <job_id>            Cancel a queued application
+    pending                    List applications awaiting your approval
     status <job_id> <status>   Update an application's status
     track                      Show the application tracker
     analytics                  Show response analytics / learnings
@@ -142,6 +146,50 @@ def cmd_apply(agent: JobAgent, args) -> None:
     print("\nReminder: the agent never submits — you stay in control.")
 
 
+def cmd_request_apply(agent: JobAgent, args) -> None:
+    plan = agent.request_apply(args.job_id, via=args.via, to=args.to or "")
+    print(f"Application prepared and AWAITING YOUR APPROVAL (nothing sent):")
+    print(f"  job:     {plan['title']} — {plan['company']} ({plan['location']})")
+    print(f"  via:     {plan['via']}")
+    if plan["via"] == "email":
+        print(f"  to:      {plan['to'] or '(fill in recruiter address)'}")
+        print(f"  subject: {plan['subject']}")
+        print(f"  .eml:    {plan['eml']}")
+    else:
+        print(f"  url:     {plan.get('url') or '(apply via source site)'}")
+    print(f"  resume:  {plan['resume']}")
+    print(f"\nApprove with:  python -m job_agent.cli approve {args.job_id}")
+    print(f"Reject with:   python -m job_agent.cli reject {args.job_id}")
+
+
+def cmd_approve(agent: JobAgent, args) -> None:
+    result = agent.approve_apply(args.job_id, open_thunderbird=not args.no_open)
+    print(f"Approved job {args.job_id} → marked Applied.")
+    if result["via"] == "email":
+        if result.get("thunderbird_launched"):
+            print("  Opened a Thunderbird compose window — review and send.")
+        else:
+            print(f"  Open this draft in Thunderbird to send: {result.get('eml')}")
+    else:
+        for step in result.get("instructions", []):
+            print(f"  • {step}")
+
+
+def cmd_reject(agent: JobAgent, args) -> None:
+    agent.reject_apply(args.job_id, reason=args.reason or "")
+    print(f"Rejected job {args.job_id}; returned to Preparing.")
+
+
+def cmd_pending(agent: JobAgent, args) -> None:
+    pending = agent.pending_approvals()
+    if not pending:
+        print("Nothing awaiting approval.")
+        return
+    print("AWAITING YOUR APPROVAL")
+    for p in pending:
+        print(f"  id={p['job_id']}  {p['title']} — {p['company']}  (via {p['via']})")
+
+
 def cmd_status(agent: JobAgent, args) -> None:
     app = agent.set_status(args.job_id, args.status, note=args.note or "")
     print(f"Job {args.job_id} → {app.status}")
@@ -219,6 +267,21 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("job_id", type=int)
     sp.add_argument("--headless", action="store_true")
 
+    sp = sub.add_parser("request-apply", help="Prepare an application & queue it for approval")
+    sp.add_argument("job_id", type=int)
+    sp.add_argument("--via", choices=["email", "web"], default="email")
+    sp.add_argument("--to", help="Recruiter email address (email channel)")
+
+    sp = sub.add_parser("approve", help="Approve a queued application (you still send/submit)")
+    sp.add_argument("job_id", type=int)
+    sp.add_argument("--no-open", action="store_true", help="Don't auto-open Thunderbird")
+
+    sp = sub.add_parser("reject", help="Cancel a queued application")
+    sp.add_argument("job_id", type=int)
+    sp.add_argument("--reason", help="Optional reason")
+
+    sub.add_parser("pending", help="List applications awaiting your approval")
+
     sp = sub.add_parser("status", help="Update application status")
     sp.add_argument("job_id", type=int)
     sp.add_argument("status", choices=[s.value for s in ApplicationStatus])
@@ -245,6 +308,10 @@ COMMANDS = {
     "tailor": cmd_tailor,
     "daily": cmd_daily,
     "email": cmd_email,
+    "request-apply": cmd_request_apply,
+    "approve": cmd_approve,
+    "reject": cmd_reject,
+    "pending": cmd_pending,
     "apply": cmd_apply,
     "status": cmd_status,
     "track": cmd_track,

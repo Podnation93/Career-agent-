@@ -199,6 +199,60 @@ def test_daily_and_email_flow(cfg):
         agent.close()
 
 
+def test_approval_gated_apply(cfg):
+    from job_agent.models import ApplicationStatus
+
+    agent = JobAgent(cfg)
+    try:
+        agent.init()
+        agent.import_resume(str(SAMPLE_PROFILE))
+        jobs = agent.search()
+        job_id = jobs[0].db_id
+
+        # Requesting an apply prepares everything but sends nothing.
+        plan = agent.request_apply(job_id, via="email", to="recruiter@example.com")
+        assert plan["via"] == "email"
+        assert Path(plan["eml"]).exists()
+        app = agent.db.get_application_for_job(job_id)
+        assert app.status == ApplicationStatus.AWAITING_APPROVAL.value
+        assert app.pending  # plan stored
+
+        assert any(p["job_id"] == job_id for p in agent.pending_approvals())
+
+        # Approval marks it Applied (Thunderbird not present in CI → no launch).
+        result = agent.approve_apply(job_id, open_thunderbird=False)
+        assert result["via"] == "email"
+        app = agent.db.get_application_for_job(job_id)
+        assert app.status == ApplicationStatus.APPLIED.value
+        assert app.date_applied
+        assert not app.pending  # cleared
+
+        # Approving again should fail (nothing pending).
+        with pytest.raises(ValueError):
+            agent.approve_apply(job_id)
+    finally:
+        agent.close()
+
+
+def test_reject_apply_returns_to_preparing(cfg):
+    from job_agent.models import ApplicationStatus
+
+    agent = JobAgent(cfg)
+    try:
+        agent.init()
+        agent.import_resume(str(SAMPLE_PROFILE))
+        jobs = agent.search()
+        job_id = jobs[0].db_id
+        agent.request_apply(job_id, via="email")
+        agent.reject_apply(job_id, reason="changed my mind")
+        app = agent.db.get_application_for_job(job_id)
+        assert app.status == ApplicationStatus.PREPARING.value
+        assert not app.pending
+        assert "changed my mind" in app.notes
+    finally:
+        agent.close()
+
+
 def test_full_agent_flow(cfg):
     agent = JobAgent(cfg)
     try:
