@@ -1,0 +1,99 @@
+# ────────────────────────────────────────────────────────────────────────────
+# Personal AI Job Application Agent — configuration
+# ────────────────────────────────────────────────────────────────────────────
+
+# Where the SQLite database lives.
+database: "job_agent/data/agent.db"
+
+# Where generated resumes / cover letters are written.
+output_dir: "job_agent/data/applications"
+
+# ── AI provider ──────────────────────────────────────────────────────────────
+# provider: heuristic | ollama | anthropic
+#   heuristic  – no dependencies, no API key, deterministic (default)
+#   ollama     – local model via http://localhost:11434 (set model below)
+#   anthropic  – Claude API (requires ANTHROPIC_API_KEY env var)
+ai:
+  provider: "heuristic"
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "llama3.1"
+  anthropic:
+    model: "claude-sonnet-4-6"
+    max_tokens: 2000
+
+# ── Candidate target roles ───────────────────────────────────────────────────
+# The job titles you want to be matched against. Edit these to your goals.
+target_roles:
+  - "IT Support"
+  - "Service Desk Analyst"
+  - "Systems Administrator"
+  - "Cybersecurity Analyst"
+  - "SOC Analyst"
+  - "Network Administrator"
+  - "Cloud Support Engineer"
+
+# Minimum overall match score (0-100) for a job to appear in the daily report.
+min_match_score: 60
+
+# ── Location requirements ────────────────────────────────────────────────────
+locations:
+  # Roles tagged with these working styles are always accepted location-wise.
+  accept_remote: true
+  accept_hybrid: true
+  accept_cbd_travel: true
+
+  # Primary regions, each with the suburbs that count as an "Excellent" match.
+  regions:
+    western_melbourne:
+      - "Footscray"
+      - "Sunshine"
+      - "Werribee"
+      - "Tarneit"
+      - "Hoppers Crossing"
+      - "Deer Park"
+      - "Laverton"
+      - "Truganina"
+      - "Altona"
+      - "Point Cook"
+      - "Yarraville"
+      - "Williamstown"
+    melbourne_cbd:
+      - "Melbourne CBD"
+      - "Melbourne"
+      - "Docklands"
+      - "Southbank"
+      - "North Melbourne"
+      - "Carlton"
+    richmond:
+      - "Richmond"
+      - "Cremorne"
+      - "Burnley"
+      - "Abbotsford"
+      - "Hawthorn"
+
+  # Suburbs that are nearby / acceptable but only a "Good" match.
+  good_suburbs:
+    - "Newport"
+    - "Spotswood"
+    - "Maribyrnong"
+    - "Kensington"
+    - "West Melbourne"
+    - "East Melbourne"
+    - "Collingwood"
+    - "Fitzroy"
+    - "South Yarra"
+    - "Prahran"
+    - "St Kilda Road"
+    - "Brooklyn"
+    - "Caroline Springs"
+
+  # Anything else is treated as "Poor" unless remote/hybrid.
+
+# ── Job search ───────────────────────────────────────────────────────────────
+search:
+  # Which adapters to query. "sample" ships example data so everything runs.
+  # Real adapters (seek, linkedin, indeed) are scaffolds — see search/ docs.
+  sources:
+    - "sample"
+  results_per_source: 25

@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Agent data (local DB and generated applications)
+job_agent/data/*.db
+job_agent/data/applications/
+
+# Playwright
+.playwright/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

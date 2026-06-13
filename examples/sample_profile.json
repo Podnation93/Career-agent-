@@ -1,0 +1,52 @@
+{
+  "name": "Alex Candidate",
+  "email": "alex.candidate@example.com",
+  "phone": "+61 400 000 000",
+  "summary": "Customer-focused IT support professional with 4+ years keeping users productive across Windows, Microsoft 365 and Active Directory environments. Comfortable owning tickets end-to-end and growing into cybersecurity.",
+  "work_history": [
+    {
+      "title": "IT Support Technician",
+      "company": "Bayside Retail Group",
+      "start": "2022",
+      "end": "Present",
+      "responsibilities": [
+        "Resolve level 1/2 tickets in ServiceNow for 600+ staff across Windows 10/11 and Microsoft 365",
+        "Administer Active Directory accounts, group policy and password resets",
+        "Image and deploy laptops, manage hardware lifecycle and asset register"
+      ],
+      "achievements": [
+        "Cut average ticket resolution time by 30% by writing a knowledge base of common fixes",
+        "Led the rollout of MFA across the organisation"
+      ]
+    },
+    {
+      "title": "Help Desk Analyst",
+      "company": "Westline Services",
+      "start": "2020",
+      "end": "2022",
+      "responsibilities": [
+        "First point of contact for IT issues via phone and email",
+        "Troubleshot networking faults (DNS, DHCP, VPN) and escalated complex incidents",
+        "Documented solutions and maintained the IT knowledge base"
+      ],
+      "achievements": [
+        "Maintained a 95% customer satisfaction rating"
+      ]
+    }
+  ],
+  "technical_skills": [
+    "Windows Server", "Active Directory", "Microsoft 365", "Networking",
+    "Help Desk", "Ticketing", "PowerShell", "Hardware Support",
+    "Identity & Access", "Backup & Recovery"
+  ],
+  "soft_skills": [
+    "Communication", "Customer Service", "Problem Solving", "Teamwork", "Documentation"
+  ],
+  "certifications": ["COMPTIA A+", "COMPTIA SECURITY+", "ITIL FOUNDATION"],
+  "education": ["Diploma of Information Technology, Victoria Polytechnic (2020)"],
+  "projects": ["Home lab: Active Directory + Microsoft Sentinel SIEM for hands-on SOC practice"],
+  "industries": ["Retail", "Managed Services"],
+  "cover_letter_style": "Warm, direct and confident. Short paragraphs. Opens with genuine enthusiasm for the specific company, gives one concrete example of impact, and closes with a clear call to chat.",
+  "career_story": "I started on the help desk because I love solving problems for people, and I've been steadily deepening my technical skills toward a cybersecurity career.",
+  "motivations": "I want to join a team where I can keep learning, take on more security responsibility, and have a clear path to grow."
+}
