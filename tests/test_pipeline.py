@@ -125,6 +125,47 @@ def test_rss_parser_handles_garbage():
     assert parse_feed("not xml at all") == []
 
 
+def test_rss_stable_external_id_no_guid():
+    from job_agent.search.rss import parse_feed
+
+    # Two distinct same-titled items with no guid/link must get distinct,
+    # stable ids (not collide under UNIQUE(source, external_id)).
+    rss = """<?xml version="1.0"?><rss version="2.0"><channel>
+      <item><title>Support Officer at Acme</title><description>Role A</description></item>
+      <item><title>Support Officer at Globex</title><description>Role B</description></item>
+    </channel></rss>"""
+    jobs = parse_feed(rss)
+    ids = [j.external_id for j in jobs]
+    assert len(ids) == 2
+    assert ids[0] != ids[1]              # no collision
+    assert all(i for i in ids)           # non-empty
+    # Deterministic across runs.
+    assert parse_feed(rss)[0].external_id == ids[0]
+
+
+def test_rss_fetch_rejects_non_http_scheme():
+    from job_agent.search.rss import _fetch
+
+    assert _fetch("file:///etc/passwd") is None
+
+
+def test_search_is_idempotent(cfg):
+    agent = JobAgent(cfg)
+    try:
+        agent.init()
+        agent.import_resume(str(SAMPLE_PROFILE))
+        first = {j.external_id: j.db_id for j in agent.search()}
+        second = {j.external_id: j.db_id for j in agent.search()}
+        # All ids non-zero and stable across re-runs.
+        assert all(v and v > 0 for v in first.values())
+        assert first == second
+        # No duplicate applications created on the second pass.
+        apps = agent.tracker.all()
+        assert len({a.job_id for a in apps}) == len(apps) == len(first)
+    finally:
+        agent.close()
+
+
 def test_html_export_escapes():
     from job_agent.optimiser import to_html
 

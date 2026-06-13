@@ -20,13 +20,18 @@ parse failures degrade gracefully to an empty result.
 
 from __future__ import annotations
 
+import hashlib
 import html
+import logging
 import re
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from xml.etree import ElementTree as ET
 
 from ..config import load_config
 from ..models import Job
+
+logger = logging.getLogger(__name__)
 
 _TAG_RE = re.compile(r"<[^>]+>")
 # Suburb/state hints we try to lift out of free text for the location field.
@@ -40,6 +45,13 @@ def _strip_html(text: str) -> str:
 
 
 def _fetch(url: str, timeout: float = 20.0) -> str | None:
+    # Only fetch real web feeds. Rejecting non-http(s) schemes blocks
+    # file:// (local-file read) and other SSRF-flavoured surprises from a
+    # mistyped or malicious feed URL in config.
+    scheme = urlparse(url).scheme.lower()
+    if scheme not in ("http", "https"):
+        logger.warning("Skipping RSS feed with unsupported scheme %r: %s", scheme, url)
+        return None
     try:
         import httpx
 
@@ -49,13 +61,15 @@ def _fetch(url: str, timeout: float = 20.0) -> str | None:
         return resp.text
     except ImportError:
         pass
-    except Exception:
+    except Exception as exc:
+        logger.warning("RSS fetch failed for %s: %s", url, exc)
         return None
     try:
         req = Request(url, headers={"User-Agent": "job-agent/0.1 (+rss)"})
-        with urlopen(req, timeout=timeout) as fh:  # noqa: S310 - user-configured feed
+        with urlopen(req, timeout=timeout) as fh:  # noqa: S310 - scheme validated above
             return fh.read().decode("utf-8", errors="ignore")
-    except Exception:
+    except Exception as exc:
+        logger.warning("RSS fetch failed for %s: %s", url, exc)
         return None
 
 
@@ -72,6 +86,16 @@ def _split_title(title: str) -> tuple[str, str]:
     if len(parts) == 2:
         return parts[0].strip(), parts[1].strip()
     return title.strip(), ""
+
+
+def _stable_id(*parts: str) -> str:
+    """Deterministic id for feed items lacking a guid/link.
+
+    Hashing title (+company) avoids the UNIQUE(source, external_id) collision
+    that ``external_id=title`` would cause for distinct same-titled postings.
+    """
+    digest = hashlib.sha1("\x00".join(p.strip() for p in parts).encode("utf-8"))
+    return digest.hexdigest()[:16]
 
 
 def _guess_location(*texts: str) -> str:
@@ -121,7 +145,7 @@ def parse_feed(content: str, source_url: str = "") -> list[Job]:
 
         jobs.append(Job(
             source="rss",
-            external_id=guid or link or title,
+            external_id=guid or link or _stable_id(title, company),
             title=(role or title).strip(),
             company=(company or "").strip(),
             location=location,

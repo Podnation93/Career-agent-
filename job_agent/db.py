@@ -145,13 +145,14 @@ class Database:
             values,
         )
         self.conn.commit()
-        if cur.lastrowid:
-            row = self.conn.execute(
-                "SELECT id FROM jobs WHERE source=? AND external_id=?",
-                (job.source, job.external_id),
-            ).fetchone()
-            return row["id"]
-        return cur.lastrowid
+        # Always look up the id explicitly: on the ON CONFLICT/UPDATE path
+        # ``cur.lastrowid`` is unreliable (often 0), so relying on it would
+        # return 0 for jobs already in the DB and corrupt the tracker.
+        row = self.conn.execute(
+            "SELECT id FROM jobs WHERE source=? AND external_id=?",
+            (job.source, job.external_id),
+        ).fetchone()
+        return row["id"]
 
     def _row_to_job(self, row: sqlite3.Row) -> Job:
         d = dict(row)
