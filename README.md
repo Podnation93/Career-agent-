@@ -29,6 +29,7 @@ and learns what works.
 | Scores the tailored resume for ATS (keywords/sections/length) | `job_agent/optimiser` |
 | Drafts a Thunderbird-ready application email (never sends) | `job_agent/integrations` |
 | One-shot `daily` run: search → tailor top matches → report | `job_agent/service.py` |
+| Scheduled `digest` (GitHub Action) that emails you matches via SMTP | `job_agent/service.py`, `.github/workflows/daily-digest.yml` |
 | Approval-gated apply: prepare → you approve → then send/submit | `job_agent/service.py` |
 | Prepares applications via browser automation | `job_agent/automation` |
 | Tracks every application & status | `job_agent/tracker` |

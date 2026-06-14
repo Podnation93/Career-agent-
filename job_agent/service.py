@@ -8,6 +8,7 @@ workflows: import profile, search & score, tailor documents, track and report.
 from __future__ import annotations
 
 import json
+import os
 from datetime import date
 from pathlib import Path
 
@@ -20,7 +21,12 @@ from .matching import MatchScorer
 from .models import ApplicationStatus, Job, Profile
 from .optimiser import CoverLetterGenerator, ResumeOptimiser, to_html
 from .optimiser.ats import AtsReport, ats_report
-from .integrations import build_email_message, open_in_thunderbird, save_eml
+from .integrations import (
+    build_email_message,
+    open_in_thunderbird,
+    save_eml,
+    send_via_smtp,
+)
 from .profile import (
     extract_profile_from_file,
     extract_profile_from_text,
@@ -209,6 +215,61 @@ class JobAgent:
                 "dir": paths["dir"],
             })
         return {"report": report, "tailored": tailored}
+
+    # ── scheduled digest ───────────────────────────────────────────────────────
+
+    def digest(self, *, top_n: int = 5, out_path: str | Path | None = None) -> dict:
+        """Run a daily pass, write a Markdown digest, and email it if configured.
+
+        Designed for an unattended/scheduled run (e.g. a GitHub Action). Emailing
+        is opt-in via SMTP_* environment variables; without them the digest is
+        only written to disk (the workflow can upload it as an artifact).
+        """
+        result = self.daily(top_n=top_n)
+        markdown = self._render_digest_md(result)
+
+        path = Path(out_path) if out_path else (
+            self.cfg.output_dir / f"digest-{date.today().isoformat()}.md"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(markdown, encoding="utf-8")
+
+        emailed = self._maybe_email_digest(markdown)
+        return {"report": result["report"], "tailored": result["tailored"],
+                "path": str(path), "emailed": emailed}
+
+    def _render_digest_md(self, result: dict) -> str:
+        lines = [f"# Job digest — {date.today().isoformat()}", "",
+                 "```", result["report"].rstrip(), "```"]
+        if result["tailored"]:
+            lines += ["", "## Auto-tailored top matches", ""]
+            for t in result["tailored"]:
+                lines.append(
+                    f"- **{t['title']}** — {t['company']} "
+                    f"(match {t['match_score']}/100, ATS {t['ats_score']}/100)"
+                )
+        return "\n".join(lines) + "\n"
+
+    def _maybe_email_digest(self, markdown: str) -> bool:
+        """Email the digest via SMTP only when SMTP_HOST and DIGEST_TO are set."""
+        host = os.environ.get("SMTP_HOST", "")
+        to = os.environ.get("DIGEST_TO", "")
+        if not host or not to:
+            return False
+        profile = self.get_profile()
+        sender = os.environ.get("DIGEST_FROM") or (profile.email if profile else "") or to
+        msg = build_email_message(
+            sender=sender, subject=f"Job digest — {date.today().isoformat()}",
+            body=markdown, to=to,
+        )
+        return send_via_smtp(
+            msg,
+            host=host,
+            port=int(os.environ.get("SMTP_PORT", "587")),
+            username=os.environ.get("SMTP_USERNAME") or None,
+            password=os.environ.get("SMTP_PASSWORD") or None,
+            use_tls=os.environ.get("SMTP_USE_TLS", "true").lower() != "false",
+        )
 
     # ── email draft (never auto-sent) ──────────────────────────────────────────
 

@@ -11,6 +11,7 @@ Run ``python -m job_agent.cli <command>``. Commands:
     jobs                       List stored jobs (highest match first)
     tailor <job_id>            Generate tailored resume + cover letters + ATS score
     daily                      Search, auto-tailor top matches, print report
+    digest                     Run daily pass, write a Markdown digest, email if configured
     apply <job_id>             Prepare an application (never submits)
     email <job_id>             Draft a Thunderbird-ready application email (never sends)
     request-apply <job_id>     Prepare an application & queue it for your approval
@@ -121,6 +122,17 @@ def cmd_daily(agent: JobAgent, args) -> None:
             print(f"  [{t['match_score']:3d}] {t['title']} — {t['company']} "
                   f"(ATS {t['ats_score']}/100)  id={t['job_id']}")
             print(f"        docs: {t['dir']}")
+
+
+def cmd_digest(agent: JobAgent, args) -> None:
+    agent.init()
+    result = agent.digest(top_n=args.top, out_path=args.out)
+    print(f"Digest written to: {result['path']}")
+    print(f"Tailored {len(result['tailored'])} top match(es).")
+    if result["emailed"]:
+        print("Emailed the digest via SMTP.")
+    else:
+        print("Not emailed (set SMTP_HOST and DIGEST_TO to enable).")
 
 
 def cmd_email(agent: JobAgent, args) -> None:
@@ -258,6 +270,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("daily", help="Search, tailor top matches, build report")
     sp.add_argument("--top", type=int, default=3, help="How many top jobs to auto-tailor")
 
+    sp = sub.add_parser("digest", help="Run daily pass, write a Markdown digest, email if configured")
+    sp.add_argument("--top", type=int, default=5, help="How many top jobs to auto-tailor")
+    sp.add_argument("--out", help="Output path for the Markdown digest")
+
     sp = sub.add_parser("email", help="Draft a Thunderbird-ready application email (never sends)")
     sp.add_argument("job_id", type=int)
     sp.add_argument("--to", help="Recruiter email address")
@@ -307,6 +323,7 @@ COMMANDS = {
     "jobs": cmd_jobs,
     "tailor": cmd_tailor,
     "daily": cmd_daily,
+    "digest": cmd_digest,
     "email": cmd_email,
     "request-apply": cmd_request_apply,
     "approve": cmd_approve,

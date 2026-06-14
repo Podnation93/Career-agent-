@@ -57,6 +57,36 @@ def save_eml(msg: EmailMessage, path: str | Path) -> str:
     return str(p)
 
 
+def send_via_smtp(
+    msg: EmailMessage,
+    *,
+    host: str,
+    port: int = 587,
+    username: str | None = None,
+    password: str | None = None,
+    use_tls: bool = True,
+    timeout: float = 30.0,
+) -> bool:
+    """Send a message over SMTP. Returns True on success, False (logged) on error.
+
+    Used by the scheduled digest on a server where Thunderbird isn't available.
+    Interactive applications still draft-only via ``.eml`` and never send.
+    """
+    import smtplib
+
+    try:
+        with smtplib.SMTP(host, port, timeout=timeout) as server:
+            if use_tls:
+                server.starttls()
+            if username:
+                server.login(username, password or "")
+            server.send_message(msg)
+        return True
+    except Exception as exc:
+        logger.warning("SMTP send failed (%s): %s", host, exc)
+        return False
+
+
 def _escape(value: str) -> str:
     """Escape a value for Thunderbird's -compose field syntax."""
     # Fields are comma-separated and quoted; neutralise quotes/commas/newlines.

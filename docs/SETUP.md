@@ -112,3 +112,45 @@ Edit `config.yaml`:
 
 If the LLM is unreachable the agent automatically falls back to its deterministic
 templates, so the pipeline never breaks.
+
+## Scheduled daily digest
+
+`python -m job_agent.cli digest` runs a full daily pass (search → tailor the top
+matches → report), writes a Markdown digest, and — if SMTP is configured —
+emails it. Thunderbird is local-only, so a *server* schedule uses SMTP instead;
+interactive use still drafts `.eml` files and never sends.
+
+Run it locally:
+
+```bash
+python -m job_agent.cli digest --top 5 --out digest.md
+```
+
+To email it (e.g. from cron), set these environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `SMTP_HOST` | Mail server (required to email) |
+| `SMTP_PORT` | Default `587` |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | Auth (use an app password) |
+| `SMTP_USE_TLS` | `false` to disable STARTTLS (default on) |
+| `DIGEST_TO` | Recipient (required to email) |
+| `DIGEST_FROM` | From address (defaults to your profile email) |
+
+Without `SMTP_HOST`/`DIGEST_TO` the digest is just written to disk.
+
+### Run it automatically on GitHub
+
+The bundled workflow `.github/workflows/daily-digest.yml` runs on a daily cron
+(and on demand). Configure these **repository secrets** (Settings → Secrets and
+variables → Actions):
+
+* `RESUME_JSON` — your profile as JSON (kept private; see
+  `examples/sample_profile.json` for the shape). If unset, the example profile
+  is used.
+* `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `DIGEST_TO` (and optionally
+  `SMTP_PORT`, `DIGEST_FROM`) — to receive the email.
+
+Without the SMTP secrets the workflow still runs and uploads `digest.md` as a
+downloadable artifact. To use live jobs rather than the sample source, set
+`search.sources` to include `rss` and list your feed URLs in `config.yaml`.

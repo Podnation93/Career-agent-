@@ -193,6 +193,63 @@ def test_web_dashboard_smoke(cfg, monkeypatch):
     assert "ATS" in r2.text
 
 
+def test_digest_writes_markdown(cfg, tmp_path, monkeypatch):
+    # Ensure no SMTP config so the digest is written but not emailed.
+    for var in ("SMTP_HOST", "DIGEST_TO"):
+        monkeypatch.delenv(var, raising=False)
+    agent = JobAgent(cfg)
+    try:
+        agent.init()
+        agent.import_resume(str(SAMPLE_PROFILE))
+        out = tmp_path / "digest.md"
+        result = agent.digest(top_n=2, out_path=str(out))
+        assert out.exists()
+        text = out.read_text()
+        assert "Job digest" in text
+        assert "JOB OPPORTUNITIES FOUND" in text
+        assert len(result["tailored"]) == 2
+        assert result["emailed"] is False
+    finally:
+        agent.close()
+
+
+def test_smtp_send_invokes_smtp(monkeypatch):
+    import smtplib
+    from job_agent.integrations import build_email_message, send_via_smtp
+
+    sent = {}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=30):
+            sent["host"] = host
+            sent["port"] = port
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def starttls(self):
+            sent["tls"] = True
+
+        def login(self, user, password):
+            sent["login"] = (user, password)
+
+        def send_message(self, msg):
+            sent["subject"] = msg["Subject"]
+
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
+    msg = build_email_message(sender="me@x.com", subject="Job digest", body="hi", to="you@y.com")
+    ok = send_via_smtp(msg, host="smtp.example.com", port=587,
+                       username="u", password="p")
+    assert ok is True
+    assert sent["host"] == "smtp.example.com"
+    assert sent["tls"] is True
+    assert sent["login"] == ("u", "p")
+    assert sent["subject"] == "Job digest"
+
+
 def test_search_is_idempotent(cfg):
     agent = JobAgent(cfg)
     try:
