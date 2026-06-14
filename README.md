@@ -92,5 +92,9 @@ Redis (the worker/queues degrade gracefully — synchronous scoring still works 
 
 ## Status
 
-Phase 1 (foundation: auth, DB, manual import, dashboard, job detail, tracker) is
-implemented. See [docs/MILESTONES.md](docs/MILESTONES.md) for what's next.
+- **Phase 1 (foundation)** ✅ — auth, DB, manual import, dashboard, job detail, tracker.
+- **Phase 2 (AI scoring)** ✅ — Claude-backed job extraction + scoring (Anthropic SDK,
+  structured outputs, Zod-validated, deterministic fallback). Set `AI_PROVIDER=anthropic`
+  and `ANTHROPIC_API_KEY` to enable; the app runs fully on the heuristic engine without a key.
+
+See [docs/MILESTONES.md](docs/MILESTONES.md) for Phases 3–6 (document generation, Gmail import, hardening, browser extension).

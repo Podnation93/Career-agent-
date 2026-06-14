@@ -12,6 +12,7 @@ import type {
 } from "@jobpilot/shared";
 import { parseJobText } from "../parsing/jobText.js";
 import { scoreJob, type ScoreJob, type ScoreProfile } from "../scoring/heuristic.js";
+import { AnthropicProvider } from "./anthropic.js";
 
 export interface JobAnalysisProvider {
   readonly name: AiProvider;
@@ -56,9 +57,13 @@ export function getProvider(env: ProviderEnv = process.env): JobAnalysisProvider
   const want = (env.AI_PROVIDER ?? "heuristic").toLowerCase();
   switch (want) {
     case "anthropic":
+      if (env.ANTHROPIC_API_KEY) {
+        return new AnthropicProvider(env.ANTHROPIC_API_KEY, env.ANTHROPIC_MODEL);
+      }
+      // No key configured — degrade gracefully to the deterministic engine.
+      return new HeuristicProvider();
     case "openai":
-      // Phase 2: return the hosted provider here (wrapped to fall back to heuristic).
-      // Until implemented, use the deterministic engine so the app stays functional.
+      // OpenAI provider lands in a later iteration; heuristic keeps the app working.
       return new HeuristicProvider();
     default:
       return new HeuristicProvider();

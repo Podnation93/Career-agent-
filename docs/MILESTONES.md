@@ -12,12 +12,15 @@ Each phase is shippable on its own. Phase 1 is a usable product.
 - Application tracker with statuses, events timeline, notes, reminders.
 - **Exit criteria:** can register, set profile, paste a job, see it scored, review it, click Apply (opens original URL), and track it to an outcome.
 
-## Phase 2 — AI scoring
+## Phase 2 — AI scoring  ✅
 - `packages/core/ai` provider abstraction (Anthropic/OpenAI/heuristic).
-- Prompts P1 (extraction) + P2 (scoring) with Zod-validated JSON and heuristic fallback.
-- Store `job_scores` history; show category breakdown, matched/missing skills, risks in UI.
-- Settings: choose provider/model, edit scoring weights.
-- **Exit:** AI-scored jobs with truthful, explainable rationale; deterministic fallback proven.
+- Prompts P1 (extraction) + P2 (scoring) implemented via the Anthropic SDK with
+  structured outputs (`client.beta.messages.parse` + `betaZodOutputFormat`),
+  validated against the shared Zod schemas, with deterministic heuristic fallback
+  on any error. Default model `claude-opus-4-8` (override with `ANTHROPIC_MODEL`).
+- Scores stored in `job_scores`; UI shows category breakdown, matched/missing skills, risks.
+- Provider selected by `AI_PROVIDER` env (per-user provider override is a later iteration).
+- **Exit:** AI-scored jobs with truthful, explainable rationale; deterministic fallback proven (set `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`).
 
 ## Phase 3 — Document generation
 - Prompts P3 (resume changes), P4 (cover letter), P5 (screening answers), interview prep.
