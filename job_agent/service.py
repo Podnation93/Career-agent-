@@ -66,6 +66,10 @@ class JobAgent:
         self.db = Database(self.cfg.database_path)
         self.ai = get_provider(self.cfg)
         self.tracker = Tracker(self.db)
+        # Apply any custom/extended skill taxonomy from config so the agent can
+        # generalise beyond the built-in IT/cyber vocabulary.
+        from .profile import skills as skillset
+        skillset.load_taxonomy(self.cfg)
 
     def close(self) -> None:
         self.db.close()

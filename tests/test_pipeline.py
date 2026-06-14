@@ -320,6 +320,44 @@ def test_ats_extra_suggestions_lead(profile):
     assert r.suggestions[0] == "Quantify your achievements with numbers"
 
 
+def test_pluggable_taxonomy_extend_and_replace():
+    from job_agent.profile import skills as skillset
+
+    try:
+        # Extend: a healthcare skill is detectable alongside the IT defaults.
+        skillset.load_taxonomy(technical={"Phlebotomy": ["venipuncture", "blood draw"]})
+        assert "Phlebotomy" in skillset.find_technical_skills("skilled in venipuncture")
+        # canonical name matches case-insensitively too
+        assert "Phlebotomy" in skillset.find_technical_skills("did Phlebotomy daily")
+        # IT defaults still present in extend mode
+        assert "Active Directory" in skillset.find_technical_skills("managed active directory")
+
+        # Replace: only the custom vocabulary applies.
+        skillset.load_taxonomy(mode="replace", technical={"Welding": ["mig", "tig"]})
+        assert skillset.find_technical_skills("mig welder") == ["Welding"]
+        assert skillset.find_technical_skills("managed active directory") == []
+    finally:
+        skillset.reset_taxonomy()
+    # Reset restores defaults.
+    assert "Active Directory" in skillset.find_technical_skills("active directory")
+
+
+def test_agent_applies_config_taxonomy(cfg):
+    from job_agent.profile import skills as skillset
+
+    cfg._data["skills"] = {"technical": {"Phlebotomy": ["venipuncture"]}}
+    agent = JobAgent(cfg)  # __init__ loads the taxonomy
+    try:
+        agent.init()
+        profile = agent.import_resume_text(
+            "Jane Nurse\njane@example.com\n\nSKILLS\nExperienced in venipuncture and patient care."
+        )
+        assert "Phlebotomy" in profile.technical_skills
+    finally:
+        agent.close()
+        skillset.reset_taxonomy()
+
+
 def test_search_is_idempotent(cfg):
     agent = JobAgent(cfg)
     try:

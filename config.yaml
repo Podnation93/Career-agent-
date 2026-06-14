@@ -59,6 +59,20 @@ ats:
   min_words: 200
   max_words: 900
 
+# ── Skill taxonomy (optional) ────────────────────────────────────────────────
+# The agent ships with an IT/cybersecurity skill vocabulary. To target another
+# industry, add skills here as `Canonical Name: [alias, alias, ...]`. Aliases
+# and the canonical name are matched case-insensitively in job ads and resumes.
+#   mode: extend  – add to the built-in vocabulary (default)
+#   mode: replace – ignore the built-ins and use only what you define here
+skills:
+  mode: extend
+  technical: {}
+    # Phlebotomy: ["venipuncture", "blood draw"]
+    # Lesson Planning: ["curriculum design", "unit planning"]
+  soft: {}
+    # Bedside Manner: ["patient rapport", "compassionate care"]
+
 # ── Location requirements ────────────────────────────────────────────────────
 locations:
   # Roles tagged with these working styles are always accepted location-wise.

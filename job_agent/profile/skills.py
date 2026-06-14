@@ -74,12 +74,59 @@ def _find(vocab: dict[str, list[str]], text: str) -> list[str]:
     return found
 
 
+# ── Pluggable taxonomy ───────────────────────────────────────────────────────
+# find_* read the *active* vocabulary, which starts as the built-in IT/cyber
+# defaults but can be extended or replaced via config (``skills:`` in
+# config.yaml) so the agent generalises to other industries. JobAgent loads the
+# configured taxonomy at startup; pure callers fall back to the defaults.
+
+def _copy(vocab: dict[str, list[str]]) -> dict[str, list[str]]:
+    return {k: list(v) for k, v in vocab.items()}
+
+
+_active_technical: dict[str, list[str]] = _copy(TECHNICAL_SKILLS)
+_active_soft: dict[str, list[str]] = _copy(SOFT_SKILLS)
+
+
+def _merge(base: dict[str, list[str]], extra: dict) -> dict[str, list[str]]:
+    """Merge a config mapping (canonical -> aliases) into a vocabulary."""
+    for canonical, aliases in (extra or {}).items():
+        aliases = aliases or []
+        # Always let the canonical name itself match, case-insensitively.
+        merged = [canonical.lower()] + [str(a).lower() for a in aliases]
+        base[canonical] = list(dict.fromkeys(base.get(canonical, []) + merged))
+    return base
+
+
+def load_taxonomy(cfg=None, *, technical=None, soft=None, mode=None) -> None:
+    """Rebuild the active skill vocabulary from defaults + config.
+
+    ``mode`` ``extend`` (default) augments the built-in vocabulary; ``replace``
+    starts from an empty vocabulary so a different industry can be defined from
+    scratch. Always rebuilds from defaults, so it is safe to call repeatedly.
+    """
+    global _active_technical, _active_soft
+    cfg_tech = (cfg.get("skills.technical") if cfg else None) or technical or {}
+    cfg_soft = (cfg.get("skills.soft") if cfg else None) or soft or {}
+    resolved_mode = (mode or (cfg.get("skills.mode") if cfg else None) or "extend").lower()
+
+    base_t = {} if resolved_mode == "replace" else _copy(TECHNICAL_SKILLS)
+    base_s = {} if resolved_mode == "replace" else _copy(SOFT_SKILLS)
+    _active_technical = _merge(base_t, cfg_tech)
+    _active_soft = _merge(base_s, cfg_soft)
+
+
+def reset_taxonomy() -> None:
+    """Restore the built-in default vocabulary."""
+    load_taxonomy(None)
+
+
 def find_technical_skills(text: str) -> list[str]:
-    return _find(TECHNICAL_SKILLS, text)
+    return _find(_active_technical, text)
 
 
 def find_soft_skills(text: str) -> list[str]:
-    return _find(SOFT_SKILLS, text)
+    return _find(_active_soft, text)
 
 
 def find_certifications(text: str) -> list[str]:
