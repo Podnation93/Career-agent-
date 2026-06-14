@@ -1,18 +1,36 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-*.egg-info/
+# dependencies
+node_modules/
+.pnpm-store/
 
-# Agent data (local DB and generated applications)
-job_agent/data/*.db
-job_agent/data/applications/
+# build output
+dist/
+.next/
+.turbo/
+out/
+*.tsbuildinfo
 
-# Playwright
-.playwright/
+# env & secrets
+.env
+.env.local
+.env.*.local
+*.pem
 
-# OS / editor
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# test coverage
+coverage/
+
+# os / editor
 .DS_Store
 .idea/
 .vscode/
+
+# legacy python
+legacy/**/__pycache__/
+legacy/**/*.py[cod]
+legacy/**/.venv/
+legacy/**/data/*.db
+legacy/**/data/applications/

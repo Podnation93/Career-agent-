@@ -1,0 +1,35 @@
+{
+  "name": "@jobpilot/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/server.ts",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^10.0.2",
+    "@fastify/helmet": "^13.0.1",
+    "@fastify/rate-limit": "^10.2.2",
+    "@jobpilot/core": "workspace:*",
+    "@jobpilot/db": "workspace:*",
+    "@jobpilot/shared": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
+    "drizzle-orm": "^0.38.3",
+    "fastify": "^5.2.0",
+    "fastify-plugin": "^5.0.1",
+    "pino": "^9.5.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

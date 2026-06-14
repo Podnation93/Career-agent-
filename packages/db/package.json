@@ -1,0 +1,34 @@
+{
+  "name": "@jobpilot/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "push": "drizzle-kit push",
+    "seed": "tsx src/seed.ts"
+  },
+  "dependencies": {
+    "@jobpilot/core": "workspace:*",
+    "@jobpilot/shared": "workspace:*",
+    "@node-rs/argon2": "^2.0.2",
+    "drizzle-orm": "^0.38.3",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "dotenv": "^16.4.7",
+    "drizzle-kit": "^0.30.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

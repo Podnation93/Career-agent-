@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": false,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@jobpilot/shared": ["packages/shared/src/index.ts"],
+      "@jobpilot/shared/*": ["packages/shared/src/*"],
+      "@jobpilot/core": ["packages/core/src/index.ts"],
+      "@jobpilot/core/*": ["packages/core/src/*"],
+      "@jobpilot/db": ["packages/db/src/index.ts"],
+      "@jobpilot/db/*": ["packages/db/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next", "legacy"]
+}

@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jobpilot
+      POSTGRES_PASSWORD: jobpilot
+      POSTGRES_DB: jobpilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - jobpilot_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobpilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - jobpilot_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  jobpilot_pgdata:
+  jobpilot_redisdata:

@@ -1,225 +1,96 @@
-# Personal AI Job Application Agent
+# JobPilot
 
-![CI](https://github.com/Podnation93/Career-agent-/actions/workflows/ci.yml/badge.svg)
+**A human-in-the-loop job application copilot.** JobPilot helps you find, review,
+prepare, and track job applications — it **never auto-applies**, bypasses CAPTCHAs,
+scrapes restricted boards, or impersonates a human candidate.
 
-A personal AI recruiter that understands your professional profile, finds
-high-quality jobs around **Western Melbourne, Melbourne CBD and Richmond**,
-tailors your resume and cover letter to each role, tracks every application,
-and learns what works.
+The workflow is deliberately manual at the moment that matters:
 
-> **Philosophy:** This is *not* a mass-apply spray-and-pray bot. It is a
-> careful career assistant that surfaces a small number of well-matched jobs,
-> customises your documents truthfully, and **never submits an application
-> without your explicit approval.**
+1. Import jobs from safe/allowed sources (Gmail job alerts, manual paste/upload, compliant career-page feeds).
+2. See them in your own dashboard.
+3. Score each job against your resume, location, skills, and career goals (AI-assisted, with a deterministic fallback).
+4. Generate tailored application material (resume notes, cover letter, screening answers).
+5. Click **Apply on original site** — JobPilot opens the official URL in a new tab.
+6. **You** review and submit the application yourself.
+7. JobPilot tracks status, reminders, and outcomes.
 
----
-
-## What it does
-
-| Capability | Module |
-|---|---|
-| Imports & understands your resume | `job_agent/profile` |
-| Learns your cover-letter style & career story | `job_agent/profile` |
-| Searches job boards via pluggable adapters (incl. compliant RSS/Atom feeds) | `job_agent/search` |
-| Filters to your preferred Melbourne locations | `job_agent/location` |
-| Scores each job (skills / experience / location / growth) | `job_agent/matching` |
-| Rewrites your resume per role (ATS-optimised, truthful) | `job_agent/optimiser` |
-| Generates short + full cover letters per role | `job_agent/optimiser` |
-| Exports tailored docs to print/PDF-ready HTML | `job_agent/optimiser` |
-| Scores the tailored resume for ATS (keywords/sections/length) | `job_agent/optimiser` |
-| Optional LLM-assisted semantic skill matching + resume feedback | `job_agent/ai/semantic.py` |
-| Drafts a Thunderbird-ready application email (never sends) | `job_agent/integrations` |
-| One-shot `daily` run: search → tailor top matches → report | `job_agent/service.py` |
-| Scheduled `digest` (GitHub Action) that emails you matches via SMTP | `job_agent/service.py`, `.github/workflows/daily-digest.yml` |
-| Approval-gated apply: prepare → you approve → then send/submit | `job_agent/service.py` |
-| Prepares applications via browser automation | `job_agent/automation` |
-| Tracks every application & status | `job_agent/tracker` |
-| Produces a daily opportunities report | `job_agent/reports` |
-| Learns which applications get responses | `job_agent/analytics` |
-| Web dashboard + CLI | `job_agent/web`, `job_agent/cli.py` |
+> JobPilot is a copilot, not an auto-apply bot. See [docs/SECURITY.md](docs/SECURITY.md)
+> for the full compliance posture.
 
 ---
 
-## System architecture
+## Stack
+
+| Layer    | Choice |
+|----------|--------|
+| Web      | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, shadcn-style UI |
+| API      | Fastify, TypeScript, Zod validation |
+| Worker   | BullMQ on Redis (Gmail import + scoring queues) |
+| DB       | PostgreSQL + Drizzle ORM |
+| Shared   | `packages/shared` (Zod schemas + types), `packages/core` (scoring, parsing, AI) |
+| AI       | Provider abstraction — Anthropic Claude / OpenAI / deterministic heuristic |
+| Infra    | pnpm workspaces monorepo, Docker Compose (Postgres + Redis) |
+
+## Monorepo layout
 
 ```
-                         ┌──────────────────────────┐
-                         │        config.yaml        │
-                         │ locations · roles · model │
-                         └────────────┬──────────────┘
-                                      │
-            ┌─────────────────────────┼─────────────────────────┐
-            │                         │                         │
-   ┌────────▼────────┐      ┌─────────▼─────────┐     ┌─────────▼─────────┐
-   │  Profile Memory │      │  Job Search Engine │     │   AI Provider     │
-   │  • resume       │      │  • Seek adapter    │     │  • local (Ollama) │
-   │  • cover style  │      │  • LinkedIn adapter│     │  • Anthropic      │
-   │  (SQLite)       │      │  • Indeed adapter  │     │  • heuristic      │
-   └────────┬────────┘      │  • Sample adapter  │     └─────────┬─────────┘
-            │               └─────────┬──────────┘               │
-            │                         │                          │
-            │               ┌─────────▼──────────┐               │
-            │               │  Location Filter   │               │
-            │               │  (suburb matching) │               │
-            │               └─────────┬──────────┘               │
-            │                         │                          │
-            └────────────┬────────────┴───────────┬──────────────┘
-                         │                         │
-               ┌─────────▼──────────┐    ┌─────────▼──────────┐
-               │   Job Matching AI  │    │  Resume Optimiser  │
-               │  match score 0-100 │    │  + Cover Letter Gen│
-               └─────────┬──────────┘    └─────────┬──────────┘
-                         │                         │
-               ┌─────────▼─────────────────────────▼──────────┐
-               │              Application Tracker (SQLite)      │
-               └─────────┬─────────────────────────┬──────────┘
-                         │                         │
-               ┌─────────▼──────────┐    ┌─────────▼──────────┐
-               │  Daily Report      │    │     Analytics      │
-               └────────────────────┘    └────────────────────┘
-                         │
-               ┌─────────▼──────────┐    ┌────────────────────┐
-               │  Web Dashboard     │    │ Application         │
-               │  (FastAPI)         │    │ Automation (Playwr.)│
-               └────────────────────┘    └────────────────────┘
+apps/
+  web/        Next.js front-end (dashboard, jobs, tracker, import, settings)
+  api/        Fastify REST API (auth, jobs, scoring, documents, tracker)
+  worker/     BullMQ background workers (gmail import, async scoring)
+packages/
+  shared/     Zod schemas + shared TypeScript types (single source of truth)
+  db/         Drizzle schema, migrations, typed DB client
+  core/       Scoring engine, Melbourne location data, job-text parsing, AI provider
+docs/         Design deliverables (PRD, architecture, schema, API, prompts, security...)
+legacy/       Previous Python prototype (reference only)
 ```
 
----
-
-## Setup
+## Quick start (dev)
 
 ```bash
-# 1. Clone & enter
-cd career-agent
+# 1. Install deps
+pnpm install
 
-# 2. Create a virtualenv
-python3 -m venv .venv
-source .venv/bin/activate
+# 2. Start Postgres + Redis (requires Docker)
+docker compose up -d
 
-# 3. Install dependencies
-pip install -r requirements.txt
+# 3. Configure environment
+cp .env.example .env        # fill in secrets (see docs/ARCHITECTURE.md)
 
-# 4. (Optional) install Playwright browsers for application automation
-python -m playwright install chromium
+# 4. Create the database schema
+pnpm db:push                # or: pnpm db:migrate
 
-# 5. Initialise the database
-python -m job_agent.cli init
+# 5. Seed your profile + sample jobs
+pnpm db:seed
 
-# 6. Import your resume (PDF, DOCX, TXT or JSON)
-python -m job_agent.cli import-resume /path/to/your_resume.pdf
+# 6. Run everything
+pnpm dev                    # web :3000, api :4000, worker
 
-# 7. Set your cover-letter style (free text, or a sample letter file)
-python -m job_agent.cli set-cover-style /path/to/sample_cover_letter.txt
-
-# 8. Find jobs (uses the sample source out-of-the-box)
-python -m job_agent.cli search
-
-# 9. See today's report
-python -m job_agent.cli report
-
-# 10. Tailor documents for a specific job id (also prints an ATS score)
-python -m job_agent.cli tailor <job_id>
-
-# 11. Or do it all in one go: search → tailor top matches → report
-python -m job_agent.cli daily --top 3
-
-# 12. Draft a Thunderbird-ready application email (never sends)
-python -m job_agent.cli email <job_id> --to recruiter@company.com --open
-
-# 13. Launch the web dashboard
-python -m job_agent.cli serve   # http://127.0.0.1:8000
+# Type-check / build the whole monorepo
+pnpm typecheck
+pnpm build
 ```
 
----
+No Docker yet? Point `DATABASE_URL` at any Postgres instance and `REDIS_URL` at any
+Redis (the worker/queues degrade gracefully — synchronous scoring still works without Redis).
 
-## AI provider
+## Documentation
 
-The agent works **without any API key** using a deterministic heuristic engine
-for matching and document generation. To get higher-quality writing you can plug
-in an LLM:
+| Doc | Contents |
+|-----|----------|
+| [docs/PRD.md](docs/PRD.md) | Product requirements, personas, workflow map, risks & mitigations |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture, repo structure, env vars |
+| [docs/SCHEMA.md](docs/SCHEMA.md) | Full database schema |
+| [docs/API.md](docs/API.md) | REST API route design |
+| [docs/FRONTEND.md](docs/FRONTEND.md) | Pages & component plan |
+| [docs/PROMPTS.md](docs/PROMPTS.md) | AI prompt plan (extraction, scoring, generation) |
+| [docs/GMAIL_IMPORT.md](docs/GMAIL_IMPORT.md) | Gmail OAuth + import logic |
+| [docs/SECURITY.md](docs/SECURITY.md) | Security, privacy & compliance plan |
+| [docs/MILESTONES.md](docs/MILESTONES.md) | MVP milestone plan (phases 1–6) |
+| [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) | Step-by-step build tasks + test plan |
 
-* **Local (recommended for privacy):** run [Ollama](https://ollama.com) and set
-  `ai.provider: ollama` in `config.yaml`.
-* **Anthropic Claude:** set `ai.provider: anthropic` and the
-  `ANTHROPIC_API_KEY` environment variable.
+## Status
 
-See `config.yaml` for all options.
-
----
-
-## Applying (approval-gated)
-
-The agent **never sends or submits on its own.** Applying is a two-step,
-human-approved flow:
-
-```bash
-# 1. Prepare a complete application and queue it for your approval (sends nothing)
-python -m job_agent.cli request-apply <job_id> --via email --to recruiter@company.com
-
-# 2. See what's waiting
-python -m job_agent.cli pending
-
-# 3. Approve → opens a Thunderbird compose window for you to send (or reject)
-python -m job_agent.cli approve <job_id>
-python -m job_agent.cli reject  <job_id> --reason "not interested"
-```
-
-When the agent is driving and you're away, the approval step surfaces as a
-**push notification in the Claude Code mobile app** — you tap to approve and the
-agent runs `approve`. Email applications open in Thunderbird for you to send;
-web-form applications open the prepared form in a browser for you to submit.
-Either way, the final action is yours.
-
-## Live job feeds (RSS/Atom)
-
-Beyond the bundled `sample` data, the `rss` source pulls **live** jobs from any
-RSS/Atom feed you list under `search.rss_feeds` in `config.yaml` — a fully
-ToS-compliant approach (feeds are published for consumption). Add `"rss"` to
-`search.sources` and list feed URLs from job boards, company career pages or
-government portals. The other adapters (Seek/LinkedIn/Indeed) remain scaffolds;
-see the legal note below.
-
-## Locations
-
-Configured in `config.yaml` under `locations`. Out of the box it targets Western
-Melbourne, Melbourne CBD and Richmond, accepts hybrid/remote roles, and rejects
-distant suburbs. Every job is tagged with a location match of
-**Excellent / Good / Poor**.
-
----
-
-## Legal & ethical note
-
-Scraping LinkedIn / Seek / Indeed may violate their Terms of Service and is
-rate-limited / blocked in practice. The bundled adapters are **scaffolds**: the
-`sample` source ships real example data so the whole pipeline runs end-to-end,
-and the real adapters document where to add your own compliant data source (e.g.
-official APIs, RSS feeds, or manual exports). Always respect each site's ToS and
-`robots.txt`, and use the automation responsibly. The agent never submits an
-application without your approval.
-
----
-
-## Project layout
-
-```
-job_agent/
-├── cli.py              # command-line entry point
-├── config.py           # loads config.yaml
-├── db.py               # SQLite schema + helpers
-├── models.py           # dataclasses (Job, Profile, Application...)
-├── ai/                 # pluggable AI provider (heuristic/ollama/anthropic)
-├── profile/            # resume + cover-letter memory
-├── search/             # job-board adapters
-├── location/           # Melbourne suburb filter
-├── matching/           # match scoring
-├── optimiser/          # resume + cover-letter generation
-├── automation/         # Playwright application prep
-├── tracker/            # application tracker
-├── analytics/          # learning / response analytics
-├── reports/            # daily report
-└── web/                # FastAPI dashboard
-```
-
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design and
-[`docs/SETUP.md`](docs/SETUP.md) for the detailed setup walkthrough.
+Phase 1 (foundation: auth, DB, manual import, dashboard, job detail, tracker) is
+implemented. See [docs/MILESTONES.md](docs/MILESTONES.md) for what's next.
