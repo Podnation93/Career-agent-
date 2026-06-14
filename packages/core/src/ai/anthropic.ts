@@ -12,13 +12,16 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import {
   extractedJobSchema,
+  generatedDocSchema,
   scoreResultSchema,
   type ExtractedJob,
+  type GeneratedDoc,
   type ScoreResult,
   type ScoringWeights,
 } from "@jobpilot/shared";
 import { parseJobText } from "../parsing/jobText.js";
 import { scoreJob as heuristicScoreJob, type ScoreJob, type ScoreProfile } from "../scoring/heuristic.js";
+import { DOCUMENT_LABELS, generateDocumentHeuristic, type DocGenInput } from "./documents.js";
 import type { JobAnalysisProvider } from "./provider.js";
 
 const DEFAULT_MODEL = "claude-opus-4-8";
@@ -116,6 +119,52 @@ export class AnthropicProvider implements JobAnalysisProvider {
     } catch (err) {
       const fallback = heuristicScoreJob(profile, job, weights);
       fallback.warnings = [...fallback.warnings, `AI scoring unavailable (${errMsg(err)}); used heuristic engine.`];
+      return fallback;
+    }
+  }
+
+  async generateDocument(input: DocGenInput): Promise<GeneratedDoc> {
+    const kindInstructions: Record<DocGenInput["kind"], string> = {
+      resume_notes:
+        "Produce tailored resume guidance: a rewritten summary, 3-5 suggested bullet edits (reframing real experience only), and keywords to include.",
+      cover_letter:
+        "Write a concise, specific cover letter (3 short paragraphs) plus a one-line short application message at the end.",
+      screening_answers:
+        "Answer the screening questions below truthfully from the profile. If an honest answer requires a skill the profile lacks, say so plainly.",
+      interview_prep:
+        "Produce interview talking points and likely questions with honest, profile-grounded answer outlines.",
+    };
+    try {
+      const payload = {
+        kind: input.kind,
+        tone: input.tone ?? "professional, warm, direct",
+        profile: input.profile,
+        job: input.job,
+        context: input.context,
+        screeningQuestions: input.screeningQuestions ?? [],
+      };
+      const msg = await this.client.beta.messages.parse({
+        model: this.model,
+        max_tokens: 3072,
+        system: SYSTEM,
+        messages: [
+          {
+            role: "user",
+            content:
+              `Generate a "${DOCUMENT_LABELS[input.kind]}" document for this job application. ` +
+              `${kindInstructions[input.kind]} ` +
+              "Use markdown for bodyMarkdown. Only reference skills and experience present in the profile. " +
+              "Put every job-required skill the profile lacks into doNotClaim, and never imply the candidate has it. " +
+              "Set keywordsToInclude to ATS keywords drawn from the job that the candidate genuinely matches.\n\n" +
+              `${JSON.stringify(payload)}`,
+          },
+        ],
+        output_config: { format: betaZodOutputFormat(generatedDocSchema) },
+      });
+      return generatedDocSchema.parse(msg.parsed_output);
+    } catch (err) {
+      const fallback = generateDocumentHeuristic(input);
+      fallback.warnings = [...fallback.warnings, `AI generation unavailable (${errMsg(err)}); used heuristic generator.`];
       return fallback;
     }
   }

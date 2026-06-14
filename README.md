@@ -96,5 +96,8 @@ Redis (the worker/queues degrade gracefully — synchronous scoring still works 
 - **Phase 2 (AI scoring)** ✅ — Claude-backed job extraction + scoring (Anthropic SDK,
   structured outputs, Zod-validated, deterministic fallback). Set `AI_PROVIDER=anthropic`
   and `ANTHROPIC_API_KEY` to enable; the app runs fully on the heuristic engine without a key.
+- **Phase 3 (document generation)** ✅ — tailored resume notes, cover letters, screening
+  answers, and interview prep per job, behind the same provider (truthful by construction:
+  job-required skills you lack are flagged "do not claim"). Markdown/text export.
 
-See [docs/MILESTONES.md](docs/MILESTONES.md) for Phases 3–6 (document generation, Gmail import, hardening, browser extension).
+See [docs/MILESTONES.md](docs/MILESTONES.md) for Phases 4–6 (Gmail import, hardening, browser extension).

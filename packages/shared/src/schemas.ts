@@ -192,9 +192,27 @@ export type ExtractedJob = z.infer<typeof extractedJobSchema>;
 
 export const generateDocumentSchema = z.object({
   kind: documentKindSchema,
+  tone: z.string().max(60).optional(),
+  screeningQuestions: z.array(z.string()).optional(),
   options: z.record(z.unknown()).optional(),
 });
 export type GenerateDocumentInput = z.infer<typeof generateDocumentSchema>;
+
+/**
+ * Contract for a generated application document (P3/P4/P5 + interview prep).
+ * The body is markdown; the safety arrays enforce the "never invent" rule —
+ * `doNotClaim` lists job-required skills absent from the profile.
+ */
+export const generatedDocSchema = z.object({
+  title: z.string(),
+  bodyMarkdown: z.string(),
+  keywordsToInclude: z.array(z.string()).default([]),
+  doNotClaim: z.array(z.string()).default([]),
+  flaggedGaps: z.array(z.string()).default([]),
+  confidence: z.number().min(0).max(1).default(0.5),
+  warnings: z.array(z.string()).default([]),
+});
+export type GeneratedDoc = z.infer<typeof generatedDocSchema>;
 
 /* ── Tracker ────────────────────────────────────────────────── */
 

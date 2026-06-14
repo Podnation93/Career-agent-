@@ -1,103 +1,106 @@
-import { getProvider } from "@jobpilot/core";
+import { getProvider, type DocGenInput } from "@jobpilot/core";
 import { schema } from "@jobpilot/db";
-import { generateDocumentSchema, type DocumentKind } from "@jobpilot/shared";
+import { generateDocumentSchema, type SkillEntry } from "@jobpilot/shared";
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { loadEnv } from "../lib/env.js";
 import { notFound } from "../lib/errors.js";
 import { toDocDTO } from "../lib/mappers.js";
+import { scoreJobForUser } from "../services/scoring.js";
 
-type ScoreRow = typeof schema.jobScores.$inferSelect;
-type JobRow = typeof schema.jobs.$inferSelect;
+const EVENT_FOR_KIND = {
+  resume_notes: "resume_generated",
+  cover_letter: "cover_letter_generated",
+  screening_answers: "resume_generated",
+  interview_prep: "resume_generated",
+} as const;
 
-/**
- * Phase 1 deterministic document generator. Builds truthful drafts from the
- * stored score (which already separates matched vs missing skills). Phase 3
- * replaces the body with AI output behind the same interface.
- */
-function buildBody(kind: DocumentKind, job: JobRow, score: ScoreRow | undefined): { title: string; body: string; meta: Record<string, unknown> } {
-  const missing = score?.missingSkills ?? [];
-  const matched = score?.matchedSkills ?? [];
-  const doNotClaim = missing.length
-    ? `\n\n> ⚠️ Do not claim: ${missing.join(", ")} (not in your profile). Mention your cybersecurity study and transferable experience instead.`
-    : "";
-  const company = job.company ?? "the company";
-
-  switch (kind) {
-    case "resume_notes":
-      return {
-        title: `Resume notes — ${job.title}`,
-        body:
-          `## Tailoring notes for ${job.title} at ${company}\n\n` +
-          `**Emphasise:** ${matched.join(", ") || "your closest transferable experience"}.\n\n` +
-          `**Suggested summary:** ${score?.resumeStrategy ?? "Lead with your IT support and SQL investigation experience."}` +
-          doNotClaim,
-        meta: { matched, missing, flagged: missing },
-      };
-    case "cover_letter":
-      return {
-        title: `Cover letter — ${job.title}`,
-        body:
-          `Dear Hiring Manager,\n\n` +
-          `I'm writing to apply for the ${job.title} role at ${company}. ` +
-          `${score?.coverLetterAngle ?? "My IT support background has prepared me well for this position."} ` +
-          `In my current role I handle L1/L2 tickets, investigate data issues with SQL, and support business applications end to end.\n\n` +
-          `I would welcome the chance to discuss how my experience fits your team.\n\nKind regards,\nDylan` +
-          doNotClaim,
-        meta: { angle: score?.coverLetterAngle, flagged: missing },
-      };
-    case "screening_answers":
-      return {
-        title: `Screening answers — ${job.title}`,
-        body:
-          `### Likely screening questions\n\n` +
-          `**Why this role?** ${score?.coverLetterAngle ?? "It aligns with my support experience and security goals."}\n\n` +
-          `**Relevant skills:** ${matched.join(", ") || "IT support, ticketing, SQL"}.\n\n` +
-          (missing.length ? `**Gaps to address honestly:** ${missing.join(", ")}.` : "") +
-          doNotClaim,
-        meta: { flagged: missing },
-      };
-    case "interview_prep":
-      return {
-        title: `Interview prep — ${job.title}`,
-        body:
-          `### Talking points\n\n` +
-          (score?.interviewPoints ?? ["Walk through a real incident you triaged."])
-            .map((p) => `- ${p}`)
-            .join("\n") +
-          doNotClaim,
-        meta: { flagged: missing },
-      };
-  }
-}
-
+/** Routes mounted under /api/jobs — generate + list documents for a job. */
 export default async function documentRoutes(app: FastifyInstance) {
-  // Generate (registered under /api/jobs)
   app.post("/:id/documents", async (req, reply) => {
     const user = app.requireUser(req);
     const { id } = req.params as { id: string };
-    const { kind } = generateDocumentSchema.parse(req.body);
+    const { kind, tone, screeningQuestions } = generateDocumentSchema.parse(req.body);
+
     const [job] = await app.db
       .select()
       .from(schema.jobs)
       .where(and(eq(schema.jobs.id, id), eq(schema.jobs.userId, user.id)));
     if (!job) throw notFound("Job");
-    const [score] = await app.db
+
+    // Ensure we have a score to ground the document; generate one if missing.
+    let [score] = await app.db
       .select()
       .from(schema.jobScores)
       .where(eq(schema.jobScores.jobId, id))
       .orderBy(desc(schema.jobScores.createdAt))
       .limit(1);
+    if (!score) score = await scoreJobForUser(app.db, user.id, id);
+
+    const [profile] = await app.db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.userId, user.id));
+    const [descRow] = await app.db
+      .select()
+      .from(schema.jobDescriptions)
+      .where(eq(schema.jobDescriptions.jobId, id))
+      .orderBy(desc(schema.jobDescriptions.capturedAt))
+      .limit(1);
+
+    const input: DocGenInput = {
+      kind,
+      tone,
+      screeningQuestions,
+      profile: {
+        headline: profile?.headline ?? null,
+        summary: profile?.summary ?? null,
+        skills: ((profile?.skills as SkillEntry[]) ?? []).map((s) => s.name),
+        experience: ((profile?.experience as DocGenInput["profile"]["experience"]) ?? []) || [],
+        careerGoals: profile?.careerGoals ?? null,
+      },
+      job: {
+        title: job.title,
+        company: job.company,
+        description: descRow?.cleanText ?? descRow?.rawImportText ?? null,
+        location: job.location,
+      },
+      context: {
+        matchedSkills: score.matchedSkills,
+        missingSkills: score.missingSkills,
+        resumeStrategy: score.resumeStrategy,
+        coverLetterAngle: score.coverLetterAngle,
+        interviewPoints: score.interviewPoints,
+      },
+    };
 
     const provider = getProvider(loadEnv());
-    const { title, body, meta } = buildBody(kind, job, score);
+    const generated = await provider.generateDocument(input);
+
     const [doc] = await app.db
       .insert(schema.generatedDocuments)
-      .values({ jobId: id, userId: user.id, kind, title, body, provider: provider.name, metadata: meta })
+      .values({
+        jobId: id,
+        userId: user.id,
+        kind,
+        title: generated.title,
+        body: generated.bodyMarkdown,
+        provider: provider.name,
+        metadata: {
+          keywordsToInclude: generated.keywordsToInclude,
+          doNotClaim: generated.doNotClaim,
+          flaggedGaps: generated.flaggedGaps,
+          confidence: generated.confidence,
+          warnings: generated.warnings,
+        },
+      })
       .returning();
 
-    const eventType = kind === "cover_letter" ? "cover_letter_generated" : "resume_generated";
-    await app.db.insert(schema.applicationEvents).values({ jobId: id, userId: user.id, type: eventType });
+    await app.db.insert(schema.applicationEvents).values({
+      jobId: id,
+      userId: user.id,
+      type: EVENT_FOR_KIND[kind],
+    });
     return reply.status(201).send({ document: toDocDTO(doc!) });
   });
 
@@ -109,5 +112,50 @@ export default async function documentRoutes(app: FastifyInstance) {
       .from(schema.generatedDocuments)
       .where(and(eq(schema.generatedDocuments.jobId, id), eq(schema.generatedDocuments.userId, user.id)));
     return { items: rows.map(toDocDTO) };
+  });
+}
+
+/** Routes mounted under /api/documents — fetch, export, delete a document. */
+export async function documentResourceRoutes(app: FastifyInstance) {
+  app.get("/:id", async (req) => {
+    const user = app.requireUser(req);
+    const { id } = req.params as { id: string };
+    const [doc] = await app.db
+      .select()
+      .from(schema.generatedDocuments)
+      .where(and(eq(schema.generatedDocuments.id, id), eq(schema.generatedDocuments.userId, user.id)));
+    if (!doc) throw notFound("Document");
+    return { document: toDocDTO(doc) };
+  });
+
+  app.get("/:id/export", async (req, reply) => {
+    const user = app.requireUser(req);
+    const { id } = req.params as { id: string };
+    const format = (req.query as { format?: string }).format ?? "md";
+    const [doc] = await app.db
+      .select()
+      .from(schema.generatedDocuments)
+      .where(and(eq(schema.generatedDocuments.id, id), eq(schema.generatedDocuments.userId, user.id)));
+    if (!doc) throw notFound("Document");
+
+    const slug = doc.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    // md/txt now; PDF/DOCX land later (kept out of the core path deliberately).
+    const ext = format === "txt" ? "txt" : "md";
+    const contentType = ext === "txt" ? "text/plain" : "text/markdown";
+    reply
+      .header("Content-Type", `${contentType}; charset=utf-8`)
+      .header("Content-Disposition", `attachment; filename="${slug}.${ext}"`);
+    return doc.body;
+  });
+
+  app.delete("/:id", async (req, reply) => {
+    const user = app.requireUser(req);
+    const { id } = req.params as { id: string };
+    const res = await app.db
+      .delete(schema.generatedDocuments)
+      .where(and(eq(schema.generatedDocuments.id, id), eq(schema.generatedDocuments.userId, user.id)))
+      .returning({ id: schema.generatedDocuments.id });
+    if (res.length === 0) throw notFound("Document");
+    return reply.status(204).send();
   });
 }

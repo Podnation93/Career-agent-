@@ -22,10 +22,13 @@ Each phase is shippable on its own. Phase 1 is a usable product.
 - Provider selected by `AI_PROVIDER` env (per-user provider override is a later iteration).
 - **Exit:** AI-scored jobs with truthful, explainable rationale; deterministic fallback proven (set `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`).
 
-## Phase 3 — Document generation
-- Prompts P3 (resume changes), P4 (cover letter), P5 (screening answers), interview prep.
-- `generated_documents` storage; Documents page; export Markdown/txt (PDF/DOCX after).
-- "Do not claim" gap flags surfaced in UI.
+## Phase 3 — Document generation  ✅
+- Prompts P3 (resume changes), P4 (cover letter), P5 (screening answers), interview prep,
+  behind the provider abstraction (`generateDocument`). Anthropic uses structured outputs
+  validated against `generatedDocSchema`; deterministic heuristic generator is the fallback.
+- `generated_documents` storage with metadata (keywords, doNotClaim, flagged gaps, confidence).
+- Export endpoint `GET /api/documents/:id/export?format=md|txt` (PDF/DOCX after); fetch + delete.
+- "Do not claim" gap flags surfaced per-document in the UI; export links on each doc.
 - **Exit:** per-job tailored, truthful documents generated, stored, and exported.
 
 ## Phase 4 — Gmail import

@@ -10,7 +10,7 @@ import { errorHandler } from "./lib/errors.js";
 import authPlugin from "./plugins/auth.js";
 import authRoutes from "./routes/auth.js";
 import dashboardRoutes from "./routes/dashboard.js";
-import documentRoutes from "./routes/documents.js";
+import documentRoutes, { documentResourceRoutes } from "./routes/documents.js";
 import gmailRoutes from "./routes/gmail.js";
 import importRoutes from "./routes/import.js";
 import jobRoutes from "./routes/jobs.js";
@@ -69,6 +69,7 @@ export async function buildApp(envOverride?: Partial<Env>): Promise<FastifyInsta
   await app.register(jobRoutes, { prefix: "/api/jobs" });
   await app.register(scoringRoutes, { prefix: "/api/jobs" });
   await app.register(documentRoutes, { prefix: "/api/jobs" });
+  await app.register(documentResourceRoutes, { prefix: "/api/documents" });
   await app.register(trackerRoutes, { prefix: "/api/tracker" });
   await app.register(importRoutes, { prefix: "/api/import" });
   await app.register(gmailRoutes, { prefix: "/api/gmail" });

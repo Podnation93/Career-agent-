@@ -4,3 +4,4 @@ export * from "./scoring/heuristic.js";
 export * from "./parsing/jobText.js";
 export * from "./dedupe/dedupe.js";
 export * from "./ai/provider.js";
+export * from "./ai/documents.js";

@@ -7,11 +7,13 @@
 import type {
   AiProvider,
   ExtractedJob,
+  GeneratedDoc,
   ScoreResult,
   ScoringWeights,
 } from "@jobpilot/shared";
 import { parseJobText } from "../parsing/jobText.js";
 import { scoreJob, type ScoreJob, type ScoreProfile } from "../scoring/heuristic.js";
+import { generateDocumentHeuristic, type DocGenInput } from "./documents.js";
 import { AnthropicProvider } from "./anthropic.js";
 
 export interface JobAnalysisProvider {
@@ -22,6 +24,7 @@ export interface JobAnalysisProvider {
     job: ScoreJob,
     weights?: Partial<ScoringWeights>,
   ): Promise<ScoreResult>;
+  generateDocument(input: DocGenInput): Promise<GeneratedDoc>;
 }
 
 /** Deterministic provider: no network, no API key, used as default + fallback. */
@@ -38,6 +41,10 @@ export class HeuristicProvider implements JobAnalysisProvider {
     weights?: Partial<ScoringWeights>,
   ): Promise<ScoreResult> {
     return scoreJob(profile, job, weights);
+  }
+
+  async generateDocument(input: DocGenInput): Promise<GeneratedDoc> {
+    return generateDocumentHeuristic(input);
   }
 }
 
