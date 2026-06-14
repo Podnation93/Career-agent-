@@ -31,10 +31,14 @@ Each phase is shippable on its own. Phase 1 is a usable product.
 - "Do not claim" gap flags surfaced per-document in the UI; export links on each doc.
 - **Exit:** per-job tailored, truthful documents generated, stored, and exported.
 
-## Phase 4 — Gmail import
-- Google OAuth (`gmail.readonly`), encrypted tokens, connect/disconnect.
-- BullMQ `gmail-import` worker; per-sender + generic parsers; dedupe; idempotent re-scan.
-- Import dashboard with progress and recent imports.
+## Phase 4 — Gmail import  ✅
+- Google OAuth (`gmail.readonly` only), tokens encrypted at rest (AES-256-GCM),
+  connect/callback (CSRF-state cookie) / status / disconnect. Raw `fetch` — no heavy deps.
+- Per-sender parsers (SEEK / Indeed / LinkedIn / Jora) + generic fallback, with fixtures + tests.
+- Read-only scan pipeline: list → parse → dedupe → insert → score; idempotent via `imported_emails`.
+  Runs synchronously in the API (graceful without Redis); BullMQ worker remains for scale.
+- Import page Gmail panel: connect, scan-now, status, disconnect, scan summary.
+- Setup + testing guide: [GMAIL_SETUP.md](GMAIL_SETUP.md) (offline parser tests + full OAuth e2e).
 - **Exit:** connect Gmail, scan, and see deduped jobs imported and scored automatically.
 
 ## Phase 5 — Production hardening

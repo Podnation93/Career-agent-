@@ -99,5 +99,8 @@ Redis (the worker/queues degrade gracefully — synchronous scoring still works 
 - **Phase 3 (document generation)** ✅ — tailored resume notes, cover letters, screening
   answers, and interview prep per job, behind the same provider (truthful by construction:
   job-required skills you lack are flagged "do not claim"). Markdown/text export.
+- **Phase 4 (Gmail import)** ✅ — read-only OAuth (`gmail.readonly`), encrypted tokens,
+  per-sender + generic alert parsers, deduped + auto-scored import. Setup/testing guide:
+  [docs/GMAIL_SETUP.md](docs/GMAIL_SETUP.md).
 
-See [docs/MILESTONES.md](docs/MILESTONES.md) for Phases 4–6 (Gmail import, hardening, browser extension).
+See [docs/MILESTONES.md](docs/MILESTONES.md) for Phases 5–6 (production hardening, browser extension).

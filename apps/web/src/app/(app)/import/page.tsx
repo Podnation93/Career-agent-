@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { JobDTO } from "@jobpilot/shared";
 import { Button, Card, PageHeader } from "@/components/ui";
+import { GmailPanel } from "@/components/jobs/GmailPanel";
 import { apiFetch } from "@/lib/client";
 
 type Tab = "text" | "url" | "file";
@@ -106,12 +107,7 @@ export default function ImportPage() {
         </Card>
       )}
 
-      <Card className="mt-6 border-dashed">
-        <h3 className="font-medium">Gmail import</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Connect Gmail to import your own job-alert emails (read-only). Lands in Phase 4 — see docs/GMAIL_IMPORT.md.
-        </p>
-      </Card>
+      <GmailPanel />
     </div>
   );
 }
