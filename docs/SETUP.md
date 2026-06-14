@@ -113,6 +113,18 @@ Edit `config.yaml`:
 If the LLM is unreachable the agent automatically falls back to its deterministic
 templates, so the pipeline never breaks.
 
+With a real provider configured, two extra LLM-assisted features turn on
+(toggle under `ai:` in `config.yaml`):
+
+* **`semantic_matching`** — matches your skills to a job's requirements by
+  meaning (synonyms / equivalent experience), not just exact keywords. The
+  numeric score is still computed deterministically; the LLM only refines *which*
+  skills count as met.
+* **`resume_feedback`** — adds concrete, qualitative resume-improvement
+  suggestions to each ATS report.
+
+Both fall back to the deterministic result on any failure.
+
 ## Scheduled daily digest
 
 `python -m job_agent.cli digest` runs a full daily pass (search → tailor the top

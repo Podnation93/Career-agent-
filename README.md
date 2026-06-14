@@ -27,6 +27,7 @@ and learns what works.
 | Generates short + full cover letters per role | `job_agent/optimiser` |
 | Exports tailored docs to print/PDF-ready HTML | `job_agent/optimiser` |
 | Scores the tailored resume for ATS (keywords/sections/length) | `job_agent/optimiser` |
+| Optional LLM-assisted semantic skill matching + resume feedback | `job_agent/ai/semantic.py` |
 | Drafts a Thunderbird-ready application email (never sends) | `job_agent/integrations` |
 | One-shot `daily` run: search → tailor top matches → report | `job_agent/service.py` |
 | Scheduled `digest` (GitHub Action) that emails you matches via SMTP | `job_agent/service.py`, `.github/workflows/daily-digest.yml` |

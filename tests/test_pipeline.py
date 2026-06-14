@@ -250,6 +250,76 @@ def test_smtp_send_invokes_smtp(monkeypatch):
     assert sent["subject"] == "Job digest"
 
 
+class _FakeProvider:
+    """An AI provider returning a canned string (stands in for Ollama/Claude)."""
+    name = "fake"
+
+    def __init__(self, response):
+        self.response = response
+
+    def generate(self, prompt, *, system="", max_tokens=1024):
+        return self.response
+
+
+def test_semantic_match_skills_parses_and_filters():
+    from job_agent.ai import semantic
+
+    required = ["Active Directory", "SIEM"]
+    prov = _FakeProvider('{"met": ["Active Directory", "Made Up Skill"], "gaps": ["SIEM"]}')
+    out = semantic.match_skills(prov, ["AD admin"], required)
+    assert out["met"] == ["Active Directory"]      # non-required filtered out
+    assert out["gaps"] == ["SIEM"]                  # gaps recomputed from required
+
+
+def test_semantic_match_skills_bad_output_returns_none():
+    from job_agent.ai import semantic
+
+    assert semantic.match_skills(_FakeProvider("not json"), ["x"], ["A"]) is None
+    assert semantic.match_skills(_FakeProvider(None), ["x"], ["A"]) is None
+
+
+def test_semantic_resume_feedback_parses():
+    from job_agent.ai import semantic
+
+    job = Job(source="t", external_id="1", title="IT", company="c", location="x")
+    fb = semantic.resume_feedback(_FakeProvider('["Quantify achievements", "Trim summary"]'), "resume", job)
+    assert fb == ["Quantify achievements", "Trim summary"]
+
+
+def test_scorer_semantic_refines_skills(cfg, profile):
+    import json
+    from job_agent.ai import HeuristicProvider
+
+    job = Job(source="t", external_id="1", title="Cybersecurity Analyst", company="c",
+              location="Melbourne CBD",
+              description="SIEM Sentinel incident response Python vulnerability management")
+    required = job.skills_detected()
+    # Heuristic provider → semantic disabled, deterministic (candidate lacks these).
+    plain = MatchScorer(cfg, profile, ai=HeuristicProvider())
+    assert plain.semantic_enabled is False
+    plain.score(job)
+    baseline = job.skills_score
+
+    # Fake LLM marks every required skill as met → score climbs to 100.
+    job2 = Job(**{k: v for k, v in job.to_dict().items() if k != "db_id"})
+    smart = MatchScorer(cfg, profile, ai=_FakeProvider(json.dumps({"met": required, "gaps": []})))
+    assert smart.semantic_enabled is True
+    smart.score(job2)
+    assert job2.skills_score == 100
+    assert job2.skills_score > baseline
+    assert job2.gaps == []
+
+
+def test_ats_extra_suggestions_lead(profile):
+    from job_agent.optimiser.ats import ats_report
+
+    job = Job(source="t", external_id="1", title="IT Support", company="c",
+              location="x", description="Windows Microsoft 365 help desk")
+    r = ats_report("alex@example.com\nSKILLS\nEXPERIENCE\nEDUCATION " + ("word " * 210),
+                   job, extra_suggestions=["Quantify your achievements with numbers"])
+    assert r.suggestions[0] == "Quantify your achievements with numbers"
+
+
 def test_search_is_idempotent(cfg):
     agent = JobAgent(cfg)
     try:

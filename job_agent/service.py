@@ -110,7 +110,7 @@ class JobAgent:
 
     def search(self) -> list[Job]:
         profile = self.require_profile()
-        scorer = MatchScorer(self.cfg, profile)
+        scorer = MatchScorer(self.cfg, profile, ai=self.ai)
         limit = int(self.cfg.get("search.results_per_source", 25))
         adapters = get_adapters(self.cfg, self.cfg.search_sources)
 
@@ -160,7 +160,8 @@ class JobAgent:
         cover_html.write_text(to_html(cover_full, f"{job.title} — Cover Letter"), encoding="utf-8")
 
         # ATS scoring of the tailored resume, written alongside the docs.
-        ats = ats_report(resume, job, **self._ats_kwargs())
+        ats = ats_report(resume, job, extra_suggestions=self._resume_feedback(resume, job),
+                         **self._ats_kwargs())
         ats_path = out_dir / "ats_report.txt"
         ats_path.write_text(_format_ats(ats), encoding="utf-8")
 
@@ -183,7 +184,8 @@ class JobAgent:
             self.tailor(job_id)
             app = self.db.get_application_for_job(job_id)
         job = self.db.get_job(job_id)
-        return ats_report(Path(app.resume_path).read_text(encoding="utf-8"), job,
+        resume = Path(app.resume_path).read_text(encoding="utf-8")
+        return ats_report(resume, job, extra_suggestions=self._resume_feedback(resume, job),
                           **self._ats_kwargs())
 
     def _ats_kwargs(self) -> dict:
@@ -191,6 +193,18 @@ class JobAgent:
             "min_words": int(self.cfg.get("ats.min_words", 200)),
             "max_words": int(self.cfg.get("ats.max_words", 900)),
         }
+
+    def _llm_enabled(self, feature: str) -> bool:
+        """True only when a real LLM provider is configured and the feature is on."""
+        if getattr(self.ai, "name", "heuristic") == "heuristic":
+            return False
+        return bool(self.cfg.get(f"ai.{feature}", True))
+
+    def _resume_feedback(self, resume_text: str, job: Job) -> list[str] | None:
+        if not self._llm_enabled("resume_feedback"):
+            return None
+        from .ai import semantic
+        return semantic.resume_feedback(self.ai, resume_text, job)
 
     # ── daily run ────────────────────────────────────────────────────────────
 

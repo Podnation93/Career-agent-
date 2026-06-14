@@ -13,6 +13,7 @@ from __future__ import annotations
 from ..config import Config
 from ..location import LocationFilter
 from ..models import Job, LocationMatch, Profile
+from ..ai import semantic
 
 # Default weights for the overall score. Tuned so location and skills dominate.
 # Overridable via `matching.weights` in config.yaml.
@@ -25,14 +26,20 @@ DEFAULT_NEUTRAL_SKILL_SCORE = 50
 
 
 class MatchScorer:
-    def __init__(self, cfg: Config, profile: Profile):
+    def __init__(self, cfg: Config, profile: Profile, ai=None):
         self.cfg = cfg
         self.profile = profile
+        self.ai = ai
         self.location_filter = LocationFilter(cfg)
         self.profile_skills = {s.lower() for s in profile.all_skills()}
         self.weights = {**WEIGHTS, **(cfg.get("matching.weights", {}) or {})}
         self.neutral_skill_score = int(
             cfg.get("matching.min_neutral_skill_score", DEFAULT_NEUTRAL_SKILL_SCORE)
+        )
+        # Semantic matching is opt-out, but only engages with a real LLM provider
+        # (the heuristic provider returns None, so this is inert by default).
+        self.semantic_enabled = bool(cfg.get("ai.semantic_matching", True)) and (
+            ai is not None and getattr(ai, "name", "heuristic") != "heuristic"
         )
 
     # ── component scores ──────────────────────────────────────────────────────
@@ -44,6 +51,14 @@ class MatchScorer:
             return self.neutral_skill_score, [], []  # no detectable requirements
         met = [s for s in required if s.lower() in self.profile_skills]
         gaps = [s for s in required if s.lower() not in self.profile_skills]
+
+        # Optionally refine with the LLM (handles synonyms / equivalent
+        # experience). Keeps the deterministic met/gaps on any failure.
+        if self.semantic_enabled:
+            refined = semantic.match_skills(self.ai, self.profile.all_skills(), required)
+            if refined is not None:
+                met, gaps = refined["met"], refined["gaps"]
+
         score = round(100 * len(met) / len(required))
         return score, met, gaps
 

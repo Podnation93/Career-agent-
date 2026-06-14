@@ -21,6 +21,10 @@ ai:
   anthropic:
     model: "claude-sonnet-4-6"
     max_tokens: 2000
+  # LLM-assisted features. These only engage when provider is not "heuristic";
+  # they always fall back to the deterministic engine on any failure.
+  semantic_matching: true   # use the LLM to match skills by meaning (synonyms)
+  resume_feedback: true     # add LLM resume-improvement suggestions to the ATS report
 
 # ── Candidate target roles ───────────────────────────────────────────────────
 # The job titles you want to be matched against. Edit these to your goals.

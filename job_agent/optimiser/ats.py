@@ -58,6 +58,7 @@ def ats_report(
     *,
     min_words: int = _MIN_WORDS,
     max_words: int = _MAX_WORDS,
+    extra_suggestions: list[str] | None = None,
 ) -> AtsReport:
     low = resume_text.lower()
     report = AtsReport(word_count=len(resume_text.split()))
@@ -96,6 +97,10 @@ def ats_report(
 
     report.score = round(kw_score + sec_score + contact_score + length_score)
     report.suggestions = _suggestions(report, min_words, max_words)
+    # LLM-generated qualitative suggestions (if any) lead, since they're richer
+    # than the deterministic checks.
+    if extra_suggestions:
+        report.suggestions = list(extra_suggestions) + report.suggestions
     return report
 
 
