@@ -13,6 +13,7 @@ export const JOB_SOURCES = [
   "manual_file",
   "extension",
   "feed",
+  "seek",
 ] as const;
 export type JobSource = (typeof JOB_SOURCES)[number];
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { JobDTO } from "@jobpilot/shared";
 import { Button, Card, PageHeader } from "@/components/ui";
 import { GmailPanel } from "@/components/jobs/GmailPanel";
+import { SeekPanel } from "@/components/jobs/SeekPanel";
 import { apiFetch } from "@/lib/client";
 
 type Tab = "text" | "url" | "file";
@@ -45,7 +46,7 @@ export default function ImportPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Import a job" subtitle="Paste text or a URL, or upload a job ad. Nothing is scraped or auto-applied." />
+      <PageHeader title="Import jobs" subtitle="Search Seek, paste text or a URL, or upload a job ad. You always apply yourself — nothing is auto-applied." />
 
       <div className="mb-4 flex gap-2">
         {(["text", "url", "file"] as Tab[]).map((t) => (
@@ -107,6 +108,7 @@ export default function ImportPage() {
         </Card>
       )}
 
+      <SeekPanel />
       <GmailPanel />
     </div>
   );

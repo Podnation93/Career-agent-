@@ -6,3 +6,4 @@ export * from "./parsing/email.js";
 export * from "./dedupe/dedupe.js";
 export * from "./ai/provider.js";
 export * from "./ai/documents.js";
+export * from "./scraping/seek.js";

@@ -15,6 +15,13 @@
       "when": 1781703575513,
       "tag": "0001_fair_lockheed",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781705969098,
+      "tag": "0002_freezing_pestilence",
+      "breakpoints": true
     }
   ]
 }
