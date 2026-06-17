@@ -77,7 +77,7 @@ export const EVENT_TYPES = [
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
-export const AI_PROVIDERS = ["heuristic", "anthropic", "openai"] as const;
+export const AI_PROVIDERS = ["heuristic", "anthropic", "openai", "ollama"] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];
 
 export const GMAIL_CONN_STATUSES = ["active", "revoked", "error"] as const;

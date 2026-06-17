@@ -15,6 +15,7 @@ import { parseJobText } from "../parsing/jobText.js";
 import { scoreJob, type ScoreJob, type ScoreProfile } from "../scoring/heuristic.js";
 import { generateDocumentHeuristic, type DocGenInput } from "./documents.js";
 import { AnthropicProvider } from "./anthropic.js";
+import { OllamaProvider } from "./ollama.js";
 
 export interface JobAnalysisProvider {
   readonly name: AiProvider;
@@ -54,6 +55,8 @@ export interface ProviderEnv {
   ANTHROPIC_MODEL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
+  OLLAMA_BASE_URL?: string;
+  OLLAMA_MODEL?: string;
 }
 
 /**
@@ -72,6 +75,10 @@ export function getProvider(env: ProviderEnv = process.env): JobAnalysisProvider
     case "openai":
       // OpenAI provider lands in a later iteration; heuristic keeps the app working.
       return new HeuristicProvider();
+    case "ollama":
+      // Local model via Ollama — no API key needed. Falls back to heuristic
+      // internally if the daemon is unreachable.
+      return new OllamaProvider(env.OLLAMA_BASE_URL, env.OLLAMA_MODEL);
     default:
       return new HeuristicProvider();
   }

@@ -78,9 +78,20 @@ Open http://localhost:3000.
 - `.env` is loaded by the API and worker via `--env-file-if-exists` and by the
   DB tooling via dotenv; defaults fall back to the `jobpilot` Postgres role that
   `docker-compose.yml` creates, so local runs work out of the box.
-- Runs fully without any AI key (`AI_PROVIDER=heuristic`). Set
-  `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` for AI-assisted scoring and
-  document generation; it falls back to the deterministic engine on any error.
+- Runs fully without any AI key (`AI_PROVIDER=heuristic`). For AI-assisted
+  scoring and document generation you can use a cloud model
+  (`AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`) or a **local model via Ollama**
+  (no key, nothing leaves your machine):
+  ```bash
+  ollama serve            # if not already running
+  ollama pull llama3      # or any model you prefer
+  # in .env:
+  AI_PROVIDER=ollama
+  OLLAMA_BASE_URL=http://localhost:11434
+  OLLAMA_MODEL=llama3
+  ```
+  All providers fall back to the deterministic engine on any error, so the app
+  never breaks if the model is slow, down, or returns unexpected output.
 - Gmail import is read-only and optional — see `docs/GMAIL_SETUP.md`.
 
 ## Useful scripts
