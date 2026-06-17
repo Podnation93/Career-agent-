@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { JobDTO } from "@jobpilot/shared";
 import { Button, Card, PageHeader } from "@/components/ui";
 import { GmailPanel } from "@/components/jobs/GmailPanel";
-import { SeekPanel } from "@/components/jobs/SeekPanel";
+import { JobSearchPanel } from "@/components/jobs/JobSearchPanel";
 import { apiFetch } from "@/lib/client";
 
 type Tab = "text" | "url" | "file";
@@ -108,7 +108,7 @@ export default function ImportPage() {
         </Card>
       )}
 
-      <SeekPanel />
+      <JobSearchPanel />
       <GmailPanel />
     </div>
   );

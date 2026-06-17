@@ -6,30 +6,43 @@ import type { JobDTO } from "@jobpilot/shared";
 import { Button, Card, ScoreBadge } from "@/components/ui";
 import { apiFetch } from "@/lib/client";
 
-type SeekResult = { found: number; imported: number; duplicates: number; jobs: JobDTO[] };
+type SearchResult = { found: number; imported: number; duplicates: number; jobs: JobDTO[] };
 
-export function SeekPanel() {
+const SOURCES = [
+  { key: "seek", label: "Seek", defaultLocation: "All Melbourne VIC", note: "Scrapes live Seek listings with full descriptions." },
+  { key: "adzuna", label: "Adzuna (many boards)", defaultLocation: "Melbourne VIC", note: "Official API — set ADZUNA_APP_ID/KEY in .env. Aggregates many AU boards." },
+] as const;
+
+export function JobSearchPanel() {
   const router = useRouter();
+  const [source, setSource] = useState<(typeof SOURCES)[number]["key"]>("seek");
   const [keywords, setKeywords] = useState("cyber security analyst");
   const [location, setLocation] = useState("All Melbourne VIC");
   const [pages, setPages] = useState(1);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<SeekResult | null>(null);
+  const [result, setResult] = useState<SearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const active = SOURCES.find((s) => s.key === source)!;
+
+  function pickSource(key: (typeof SOURCES)[number]["key"]) {
+    setSource(key);
+    setLocation(SOURCES.find((s) => s.key === key)!.defaultLocation);
+  }
 
   async function search() {
     setBusy(true);
     setError(null);
     setResult(null);
     try {
-      const res = await apiFetch<SeekResult>("/api/import/seek", {
+      const res = await apiFetch<SearchResult>(`/api/import/${source}`, {
         method: "POST",
         body: JSON.stringify({ keywords, location, pages }),
       });
       setResult(res);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Seek search failed");
+      setError(err instanceof Error ? err.message : "Search failed");
     } finally {
       setBusy(false);
     }
@@ -38,11 +51,22 @@ export function SeekPanel() {
   return (
     <Card className="mt-6 space-y-3">
       <div>
-        <h2 className="text-sm font-semibold">Search Seek</h2>
-        <p className="text-xs text-slate-500">
-          Pulls matching live listings from Seek (with full descriptions) and scores them. You still
-          apply yourself on Seek.
-        </p>
+        <h2 className="text-sm font-semibold">Search job boards</h2>
+        <p className="text-xs text-slate-500">{active.note} You always apply yourself.</p>
+      </div>
+
+      <div className="flex gap-2">
+        {SOURCES.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => pickSource(s.key)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+              source === s.key ? "bg-brand-600 text-white" : "bg-slate-200 dark:bg-slate-800"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
       </div>
 
       <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
@@ -54,7 +78,7 @@ export function SeekPanel() {
         />
         <input
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
-          placeholder="Location e.g. All Melbourne VIC"
+          placeholder="Location"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
         />
@@ -62,7 +86,7 @@ export function SeekPanel() {
           className="rounded-lg border border-slate-300 px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
           value={pages}
           onChange={(e) => setPages(Number(e.target.value))}
-          title="Result pages (32 jobs each)"
+          title="Result pages"
         >
           <option value={1}>1 page</option>
           <option value={2}>2 pages</option>
@@ -72,7 +96,7 @@ export function SeekPanel() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <Button onClick={search} disabled={busy || !keywords.trim()}>
-        {busy ? "Searching Seek…" : "Search Seek & import"}
+        {busy ? `Searching ${active.label}…` : `Search ${active.label} & import`}
       </Button>
 
       {result && (

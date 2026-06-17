@@ -1,4 +1,11 @@
-import { canonicalizeUrl, dedupeHash, getProvider, searchSeek, fetchSeekDescription } from "@jobpilot/core";
+import {
+  canonicalizeUrl,
+  dedupeHash,
+  getProvider,
+  searchSeek,
+  fetchSeekDescription,
+  searchAdzuna,
+} from "@jobpilot/core";
 import { schema } from "@jobpilot/db";
 import { manualImportSchema, type JobSource, type WorkType } from "@jobpilot/shared";
 import { and, desc, eq } from "drizzle-orm";
@@ -186,6 +193,53 @@ export default async function importRoutes(app: FastifyInstance) {
       jobs.push(result.job);
     }
 
+    return reply.status(201).send({ found: listings.length, imported, duplicates, jobs });
+  });
+
+  // Search Adzuna (official API) and import matching jobs. Needs ADZUNA_APP_ID/KEY.
+  app.post("/adzuna", async (req, reply) => {
+    const user = app.requireUser(req);
+    const env = loadEnv();
+    const body = (req.body ?? {}) as { keywords?: string; location?: string; pages?: number };
+    const keywords = (body.keywords ?? "").trim();
+    if (!keywords) throw badRequest("keywords is required.");
+    const location = (body.location ?? "Melbourne VIC").trim();
+    const pages = Math.max(1, Math.min(body.pages ?? 1, 3));
+
+    let listings;
+    try {
+      listings = await searchAdzuna(
+        { appId: env.ADZUNA_APP_ID ?? "", appKey: env.ADZUNA_APP_KEY ?? "" },
+        { keywords, location, pages },
+      );
+    } catch (err) {
+      throw badRequest(err instanceof Error ? err.message : "Adzuna search failed");
+    }
+
+    const jobs = [];
+    let imported = 0;
+    let duplicates = 0;
+    for (const j of listings) {
+      const descriptionText = [j.title, j.company, j.location, j.description].filter(Boolean).join("\n");
+      const result = await persistJob(app, user.id, {
+        title: j.title,
+        company: j.company,
+        location: j.location,
+        workType: j.workType,
+        salaryMin: j.salaryMin,
+        salaryMax: j.salaryMax,
+        salaryText: j.salaryText,
+        source: "adzuna",
+        sourceUrl: j.url,
+        applyUrl: j.url,
+        descriptionText,
+        confidence: 1,
+        warnings: [],
+      });
+      if (result.created) imported++;
+      else duplicates++;
+      jobs.push(result.job);
+    }
     return reply.status(201).send({ found: listings.length, imported, duplicates, jobs });
   });
 

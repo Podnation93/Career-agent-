@@ -14,6 +14,7 @@ export const JOB_SOURCES = [
   "extension",
   "feed",
   "seek",
+  "adzuna",
 ] as const;
 export type JobSource = (typeof JOB_SOURCES)[number];
 

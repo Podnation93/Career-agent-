@@ -22,6 +22,13 @@
       "when": 1781705969098,
       "tag": "0002_freezing_pestilence",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781706561047,
+      "tag": "0003_fuzzy_christian_walker",
+      "breakpoints": true
     }
   ]
 }
