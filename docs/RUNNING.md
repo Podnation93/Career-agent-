@@ -28,6 +28,39 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
+## No Docker? Two options for Postgres
+
+JobPilot needs Postgres (its schema uses Postgres-only features). Redis is
+**optional** — leave `REDIS_URL` blank and the worker idles while the API scores
+synchronously. Pick one of these instead of `docker compose up`:
+
+### Option A — Install Postgres locally (Fedora)
+```bash
+sudo dnf install -y postgresql-server postgresql
+sudo postgresql-setup --initdb
+sudo systemctl enable --now postgresql
+
+# Create the role + database the default .env expects:
+sudo -u postgres psql -c "CREATE USER jobpilot WITH PASSWORD 'jobpilot';"
+sudo -u postgres psql -c "CREATE DATABASE jobpilot OWNER jobpilot;"
+```
+The default `.env` (`DATABASE_URL=postgres://jobpilot:jobpilot@localhost:5432/jobpilot`)
+already matches — no edits needed.
+
+### Option B — Free hosted Postgres (zero install)
+Create a free database at [neon.tech](https://neon.tech) (or Supabase), then put
+its connection string in `.env`:
+```bash
+DATABASE_URL=postgres://USER:PASSWORD@HOST/DBNAME?sslmode=require
+```
+
+Then for either option:
+```bash
+pnpm db:migrate     # create the schema
+pnpm db:seed        # optional sample data
+pnpm dev
+```
+
 ## Run it
 ```bash
 pnpm dev
