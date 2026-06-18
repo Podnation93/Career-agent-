@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — AI Job Agent{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="row" style="justify-content:space-between; align-items:center;">
+    <div>
+      {% if profile %}
+        <strong>{{ profile.name or "Your profile" }}</strong>
+        <div class="muted">{{ profile.technical_skills|length }} technical skills ·
+          {{ profile.work_history|length }} roles ·
+          cover style {{ "set" if profile.cover_letter_style else "not set" }}</div>
+      {% else %}
+        <strong>No profile yet</strong>
+        <div class="muted">Import your resume via the CLI:
+          <code>python -m job_agent.cli import-resume &lt;file&gt;</code></div>
+      {% endif %}
+    </div>
+    <form method="post" action="/search"><button type="submit">🔍 Find jobs</button></form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Analytics</h2>
+  <div class="row">
+    <div><div class="score">{{ analytics.applied }}</div><div class="muted">Applied</div></div>
+    <div><div class="score">{{ analytics.responses }}</div><div class="muted">Responses</div></div>
+    <div><div class="score">{{ analytics.response_rate }}%</div><div class="muted">Response rate</div></div>
+    <div><div class="score">{{ analytics.interviews }}</div><div class="muted">Interviews</div></div>
+    <div><div class="score">{{ analytics.offers }}</div><div class="muted">Offers</div></div>
+  </div>
+  <ul class="muted">{% for i in analytics.insights %}<li>{{ i }}</li>{% endfor %}</ul>
+</div>
+
+<h2>Top matches</h2>
+{% if not jobs %}
+  <div class="card muted">No jobs yet. Click “Find jobs”.</div>
+{% endif %}
+{% for job in jobs %}
+<div class="card">
+  <div class="row" style="justify-content:space-between;">
+    <div>
+      <strong><a href="/job/{{ job.db_id }}">{{ job.title }}</a></strong> — {{ job.company }}
+      <div class="muted">{{ job.location }}
+        <span class="pill {{ job.location_match }}">{{ job.location_match }}</span>
+        · {{ job.salary or "salary n/a" }}</div>
+      <div class="muted">{{ job.fit_reason }}</div>
+      <div class="muted"><em>{{ job.recommendation }}</em></div>
+    </div>
+    <div style="text-align:right;">
+      <div class="score">{{ job.overall_score }}</div>
+      <div class="muted">skills {{ job.skills_score }} · exp {{ job.experience_score }}<br>
+        loc {{ job.location_score }} · growth {{ job.growth_score }}</div>
+      {% set app = apps.get(job.db_id) %}
+      <div class="muted">Status: {{ app.status if app else "Found" }}</div>
+      <form method="post" action="/tailor" style="margin-top:8px;">
+        <input type="hidden" name="job_id" value="{{ job.db_id }}">
+        <button class="ghost" type="submit">✍️ Tailor</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

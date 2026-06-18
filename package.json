@@ -1,0 +1,26 @@
+{
+  "name": "jobpilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.6.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:push": "pnpm --filter @jobpilot/db push",
+    "db:generate": "pnpm --filter @jobpilot/db generate",
+    "db:migrate": "pnpm --filter @jobpilot/db migrate",
+    "db:seed": "pnpm --filter @jobpilot/db seed"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

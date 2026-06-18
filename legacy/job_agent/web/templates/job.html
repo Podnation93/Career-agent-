@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} — AI Job Agent{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>{{ job.title }} <span class="muted">— {{ job.company }}</span></h2>
+  <div class="muted">{{ job.location }}
+    <span class="pill {{ job.location_match }}">{{ job.location_match }}</span>
+    · {{ job.salary or "salary n/a" }} · score {{ job.overall_score }}/100</div>
+  <p>{{ job.description }}</p>
+  {% if job.url %}<a href="{{ job.url }}" target="_blank">View original posting ↗</a>{% endif %}
+</div>
+
+<div class="card">
+  <h3>Match breakdown</h3>
+  <table>
+    <tr><th>Skills</th><td>{{ job.skills_score }}%</td></tr>
+    <tr><th>Experience</th><td>{{ job.experience_score }}%</td></tr>
+    <tr><th>Location</th><td>{{ job.location_score }}%</td></tr>
+    <tr><th>Career growth</th><td>{{ job.growth_score }}%</td></tr>
+  </table>
+  <p><strong>Requirements met:</strong> {{ job.requirements_met|join(", ") or "—" }}</p>
+  <p><strong>Gaps:</strong> {{ job.gaps|join(", ") or "—" }}</p>
+  <p><strong>Recommendation:</strong> {{ job.recommendation }}</p>
+</div>
+
+<div class="card">
+  <h3>Application</h3>
+  <form method="post" action="/tailor">
+    <input type="hidden" name="job_id" value="{{ job.db_id }}">
+    <button type="submit">✍️ {{ "Re-tailor" if docs else "Generate" }} documents</button>
+  </form>
+  {% if app %}
+  <form method="post" action="/status" style="margin-top:10px;">
+    <input type="hidden" name="job_id" value="{{ job.db_id }}">
+    <select name="status">
+      {% for s in ["Found","Preparing","Applied","Interview","Rejected","Offer"] %}
+        <option value="{{ s }}" {{ "selected" if app.status==s }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <button class="ghost" type="submit">Update status</button>
+  </form>
+  {% endif %}
+</div>
+
+{% for label, content in docs.items() %}
+<div class="card">
+  <h3>{{ label|replace("_"," ")|title }}</h3>
+  <pre>{{ content }}</pre>
+</div>
+{% endfor %}
+
+{% endblock %}

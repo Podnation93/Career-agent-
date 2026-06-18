@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+.next/
+.turbo/
+out/
+*.tsbuildinfo
+
+# env & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# test coverage
+coverage/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# legacy python
+legacy/**/__pycache__/
+legacy/**/*.py[cod]
+legacy/**/.venv/
+legacy/**/data/*.db
+legacy/**/data/applications/

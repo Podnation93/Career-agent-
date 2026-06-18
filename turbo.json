@@ -1,0 +1,39 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "SESSION_SECRET",
+    "ENCRYPTION_KEY",
+    "AI_PROVIDER",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_MODEL",
+    "OPENAI_API_KEY",
+    "OLLAMA_BASE_URL",
+    "OLLAMA_MODEL",
+    "ADZUNA_APP_ID",
+    "ADZUNA_APP_KEY",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_REDIRECT_URI",
+    "API_PORT",
+    "WEB_PORT",
+    "API_BASE_URL"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {},
+    "test": {}
+  }
+}
